@@ -82,128 +82,103 @@ const genID = (length, mode) => {
     return key;
 };
 
-// 0 = payment gagal,
-// 1 = payment berhasil,
-// 2 = diinvite menjadi employee,
-// 3 = berhasil assign,
-// 4 = gagal assign,
-// 5 = dipecat,
-// 6 = pesanan ready,
-// 7 = pesanan masuk,
-// 8 = pesanan diproses
-async function sendNotification(target_user_id, sender_user_id, msg, type){
-    await db.query(`INSERT INTO notifications VALUES(null, '${target_user_id}', '${sender_user_id}', 1, ${type}, '${msg}', CURRENT_TIMESTAMP, NULL)`);
-    let resu = await db.query(`SELECT * FROM notifications WHERE user_reciever_id='${target_user_id}' AND messagge='${msg}' ORDER BY id DESC`);
-    return resu[0].id;
-}
-
-
-
-
-
 
 // user register
-router.post('/register', upload.single("foto"), async (req,res)=> {
+router.post('/register', async (req,res)=> {
     // let isUpperLowerNumber = /^(?![A-Z]+$)(?![a-z]+$)(?![0-9]+$)(?![A-Z0-9]+$)(?![a-z0-9]+$)[0-9A-Za-z]+$/.test(req.body.test);
     // let tgl = req.body.tanggal_peminjaman.split("-");
     // await db.query(`INSERT INTO PEMINJAMAN VALUES('${}','${}',STR_TO_DATE('${(tgl[0] + " " + tgl[1] + " " + tgl[2])}','%d %m %Y'),'${}')`);
-    try {
-        if(req.body.role_name && req.body.name && req.body.telephone_number && req.body.email
-            && req.body.age && req.body.height && req.body.weight && req.body.gender && req.body.password && req.body.confirm_password
-        ){
-            // cek no telp angka saja
-            let num = /^\d+$/.test(req.body.telephone_number);
-            if(!num) {
-                return res.status(400).json({
-                    'error msg': 'No telepon harus angka semua!'
-                });
-            }
-
-            // no telp length = 12
-            if(req.body.telephone_number.length > 12){
-                return res.status(400).json({
-                    'error msg': 'No telepon kelebihan!'
-                });
-            }else if(req.body.telephone_number.length < 12){
-                return res.status(400).json({
-                    'error msg': 'No telepon kekurangan!'
-                });
-            }
-
-            // cek cpass dan pass
-            if(req.body.password != req.body.confirm_password){
-                return res.status(400).json({
-                    'error msg': 'Password dan Confirm password harus sama!'
-                });
-            }
-
-            // cek tidak email kembar
-            let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
-            if(resu.length > 0){
-                return res.status(400).json({
-                    'error msg': 'Email telah digunakan!'
-                });
-            }
-
-            // gen id
-            // let flag = false;
-            // let id = '';
-            // do{
-            //     flag = false;
-            //     id = genID(9,1);
-            //     resu = await db.query(`SELECT * FROM users WHERE id='${id}'`);
-            //     if(resu.length > 0){
-            //         flag = true;
-            //     }
-            // } while(flag)
-
-            // gen unique code
-            let unique_code = '';
-            do{
-                flag = false;
-                unique_code = genID(8,1);
-                resu = await db.query(`SELECT * FROM users WHERE unique_code='${unique_code}'`);
-                if(resu.length > 0){
-                    flag = true;
-                }
-            } while(flag)
-
-            // cek role
-            resu = await db.query(`SELECT * FROM roles WHERE UPPER(name)=UPPER('${req.body.role_name}')`);
-            if(resu.length == 0){
-                return res.status(404).json({
-                    'error msg': 'Role tidak ditemukan!'
-                });
-            }
-
-            // insert
-            await db.query(`INSERT INTO users VALUES(null, '${resu[0].id}', '${req.body.name}', '${req.body.telephone_number}', '${req.body.email}', ${req.body.age}, ${req.body.height}, ${req.body.weight}, '${req.body.gender}', '${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}', '${unique_code}', null, CURRENT_TIMESTAMP, null)`);
-
-            return res.status(201).json({
-                'message': 'Register Berhasil!',
-                'data':{
-                    'Email': req.body.email,
-                    'No Telepon': req.body.telephone_number,
-                    'Nama User': req.body.name,
-                    'age': req.body.age,
-                    'height': req.body.height,
-                    'weight': req.body.weight,
-                    'unique_code': unique_code,
-                },
-                'status': 'Success'
-            });
-        }else{
+    if(req.body.role_name && req.body.name && req.body.telephone_number && req.body.email
+        && req.body.age && req.body.height && req.body.weight && req.body.gender && req.body.password && req.body.confirm_password
+    ){
+        // cek no telp angka saja
+        let num = /^\d+$/.test(req.body.telephone_number);
+        if(!num) {
             return res.status(400).json({
-                'message': 'Inputan Belum lengkap!',
-                'data':{
-                },
-                'status': 'Error'
+                'error msg': 'No telepon harus angka semua!'
             });
         }
-    } catch (error) {
-        console.log(error);
+
+        // no telp length = 12
+        if(req.body.telephone_number.length > 12){
+            return res.status(400).json({
+                'error msg': 'No telepon kelebihan!'
+            });
+        }else if(req.body.telephone_number.length < 12){
+            return res.status(400).json({
+                'error msg': 'No telepon kekurangan!'
+            });
+        }
+
+        // cek cpass dan pass
+        if(req.body.password != req.body.confirm_password){
+            return res.status(400).json({
+                'error msg': 'Password dan Confirm password harus sama!'
+            });
+        }
+
+        // cek tidak email kembar
+        let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
+        if(resu.length > 0){
+            return res.status(400).json({
+                'error msg': 'Email telah digunakan!'
+            });
+        }
+
+        // gen id
+        // let flag = false;
+        // let id = '';
+        // do{
+        //     flag = false;
+        //     id = genID(9,1);
+        //     resu = await db.query(`SELECT * FROM users WHERE id='${id}'`);
+        //     if(resu.length > 0){
+        //         flag = true;
+        //     }
+        // } while(flag)
+        
+
+        // gen unique code
+        let unique_code = '';
+        do{
+            flag = false;
+            unique_code = genID(8,1);
+            resu = await db.query(`SELECT * FROM users WHERE unique_code='${unique_code}'`);
+            if(resu.length > 0){
+                flag = true;
+            }
+        } while(flag)
+
+        // cek role
+        resu = await db.query(`SELECT * FROM roles WHERE UPPER(name)=UPPER('${req.body.role_name}')`);
+        if(resu.length == 0){
+            return res.status(404).json({
+                'error msg': 'Role tidak ditemukan!'
+            });
+        }
+
+        // insert
+        await db.query(`INSERT INTO users VALUES(null, '${resu[0].id}', '${req.body.name}', '${req.body.telephone_number}', '${req.body.email}', ${req.body.age}, ${req.body.height}, ${req.body.weight}, '${req.body.gender}', '${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}', '${unique_code}', null, CURRENT_TIMESTAMP, null)`);
+
+        return res.status(201).json({
+            'message': 'Register Berhasil!',
+            'data':{
+                'Email': req.body.email,
+                'No Telepon': req.body.telephone_number,
+                'Nama User': req.body.name,
+                'age': req.body.age,
+                'height': req.body.height,
+                'weight': req.body.weight,
+                'unique_code': unique_code,
+            },
+            'status': 'Success'
+        });
+    }else{
         return res.status(400).json({
-            'error msg': 'File foto belum dimasukkan!'
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
         });
     }
 });
@@ -419,148 +394,5 @@ router.patch('/profile/password/udpate', cekJWT, async(req,res)=>{
     }
 });
 
-
-// list stall yang available
-router.get('/stall/list', cekJWT, async(req,res)=>{
-    let resu = await db.query(`SELECT * FROM stalls WHERE is_available=1`);
-    return res.status(200).json({
-        'message': 'List available stall!',
-        'data': resu,
-        'status' : 'Success'
-    });
-});
-
-// stall schedule
-router.get('/stall/schedules/list', cekJWT, async(req,res)=>{
-    if(req.body.stall_id){
-        let resu = await db.query(`SELECT * FROM stall_schedules WHERE stall_id=${req.body.stall_id}`);
-
-        let date = new Date();
-        let openCloseTime = [];
-        let daysName = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-        for (let i = 0; i < resu.length; i++) {
-            let days = resu[i].name.split(',');
-            for (let j = 0; j < days.length; j++) {
-                if(date.getDay() == days[j]){
-                    openCloseTime.push(resu[i].open_time);
-                    openCloseTime.push(resu[i].close_time);
-                }
-            }
-        }
-
-        return res.status(200).json({
-            'message': 'List schedule stall!',
-            'data': {
-                'full_stall_schedule': resu,
-                'today': {
-                    'day': daysName[date.getDay()],
-                    'open': openCloseTime[0],
-                    'close': openCloseTime[1],
-                }
-            },
-            'status' : 'Success'
-        });
-    }else{
-        return res.status(400).json({
-            'message': 'Inputan Belum lengkap!',
-            'data':{
-            },
-            'status': 'Error'
-        });
-    }
-});
-
-// list notification yang status 1
-router.get('/notifications/list', cekJWT, async(req,res)=>{
-    let resu = await db.query(`SELECT * FROM notifications WHERE status=1 AND user_reciever_id='${req.user.id}'`);
-    return res.status(200).json({
-        'message': 'List notifications user!',
-        'data': resu,
-        'status' : 'Success'
-    });
-});
-
-
-// accept invite stall admin assign
-router.post('/assign/accept', cekJWT, async (req,res)=> {
-    try{
-        if(req.body.notification_id){
-            let calon_employee = await db.query(`SELECT * FROM users WHERE id='${req.user.id}'`);
-
-            // update status stall users from pending become active
-            await db.query(`UPDATE stall_users SET status=1 WHERE user_id='${req.user.id}' AND notification_id='${req.body.notification_id}'`);
-            let resu = await db.query(`SELECT * FROM stall_users WHERE user_id='${req.user.id}' AND notification_id='${req.body.notification_id}'`);
-            let stall = await db.query(`SELECT * FROM stalls WHERE id='${resu[0].stall_id}'`);
-
-            let admin_user = await db.query(`SELECT * FROM notifications WHERE id='${req.body.notification_id}'`);
-
-            // send notification to admin
-            let msg = `Assign employee ${calon_employee[0].name} untuk menjadi employee stall ${stall[0].name} berhasil!`;
-            sendNotification(admin_user[0].id, req.user.id, msg, 3);
-
-            return res.status(201).json({
-                'message': 'Berhasil menjadi employee!',
-                'data':{
-                    'stall_admin_name': admin_user[0].name,
-                    'employee_name': calon_employee[0].name,
-                    'stall_name': stall[0].name,
-                },
-                'status': 'Success'
-            });
-        }else{
-            return res.status(400).json({
-                'message': 'Inputan Belum lengkap!',
-                'data':{
-                },
-                'status': 'Error'
-            });
-        }
-    }catch (e) {
-        console.log(e);
-    }
-});
-
-// decline assign
-router.delete('/assign/decline', cekJWT, async (req,res)=> {
-    try{
-        if(req.body.notification_id){
-            let calon_employee = await db.query(`SELECT * FROM users WHERE id='${req.user.id}'`);
-
-            // update status stall users from pending become not active
-            await db.query(`UPDATE stall_users SET status=0 WHERE user_id='${req.user.id}' AND notification_id='${req.body.notification_id}'`);
-            let resu = await db.query(`SELECT * FROM stall_users WHERE user_id='${req.user.id}' AND notification_id='${req.body.notification_id}'`);
-            let stall = await db.query(`SELECT * FROM stalls WHERE id='${resu[0].stall_id}'`);
-
-            let admin_user = await db.query(`SELECT * FROM notifications WHERE id='${req.body.notification_id}'`);
-
-            // send notification to admin
-            let msg = `Assign employee ${calon_employee[0].name} untuk menjadi employee stall ${stall[0].name} Gagal!`;
-            sendNotification(admin_user[0].id, req.user.id, msg, 4);
-
-            // delete category stall users
-            resu = await db.query(`SELECT * FROM stall_users WHERE user_id='${req.user.id}' AND notification_id='${req.body.notification_id}'`);
-            await db.query(`DELETE FROM category_stall_users WHERE stall_user_id='${resu[0].id}'`);
-
-            return res.status(200).json({
-                'message': 'Batal menjadi employee!',
-                'data':{
-                    'stall_admin_name': admin_user[0].name,
-                    'employee_name': calon_employee[0].name,
-                    'stall_name': stall[0].name,
-                },
-                'status': 'Success'
-            });
-        }else{
-            return res.status(400).json({
-                'message': 'Inputan Belum lengkap!',
-                'data':{
-                },
-                'status': 'Error'
-            });
-        }
-    }catch (e) {
-        console.log(e);
-    }
-});
 
 module.exports = router;

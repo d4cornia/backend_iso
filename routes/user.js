@@ -88,27 +88,27 @@ router.post('/register', async (req,res)=> {
     // let isUpperLowerNumber = /^(?![A-Z]+$)(?![a-z]+$)(?![0-9]+$)(?![A-Z0-9]+$)(?![a-z0-9]+$)[0-9A-Za-z]+$/.test(req.body.test);
     // let tgl = req.body.tanggal_peminjaman.split("-");
     // await db.query(`INSERT INTO PEMINJAMAN VALUES('${}','${}',STR_TO_DATE('${(tgl[0] + " " + tgl[1] + " " + tgl[2])}','%d %m %Y'),'${}')`);
-    if(req.body.role_name && req.body.name && req.body.telephone_number && req.body.email
-        && req.body.age && req.body.height && req.body.weight && req.body.gender && req.body.password && req.body.confirm_password
+    if(req.body.username && req.body.name && req.body.email
+        && req.body.description && req.body.password && req.body.confirm_password
     ){
         // cek no telp angka saja
-        let num = /^\d+$/.test(req.body.telephone_number);
-        if(!num) {
-            return res.status(400).json({
-                'error msg': 'No telepon harus angka semua!'
-            });
-        }
+        // let num = /^\d+$/.test(req.body.telephone_number);
+        // if(!num) {
+        //     return res.status(400).json({
+        //         'error msg': 'No telepon harus angka semua!'
+        //     });
+        // }
 
-        // no telp length = 12
-        if(req.body.telephone_number.length > 12){
-            return res.status(400).json({
-                'error msg': 'No telepon kelebihan!'
-            });
-        }else if(req.body.telephone_number.length < 12){
-            return res.status(400).json({
-                'error msg': 'No telepon kekurangan!'
-            });
-        }
+        // // no telp length = 12
+        // if(req.body.telephone_number.length > 12){
+        //     return res.status(400).json({
+        //         'error msg': 'No telepon kelebihan!'
+        //     });
+        // }else if(req.body.telephone_number.length < 12){
+        //     return res.status(400).json({
+        //         'error msg': 'No telepon kekurangan!'
+        //     });
+        // }
 
         // cek cpass dan pass
         if(req.body.password != req.body.confirm_password){
@@ -117,11 +117,20 @@ router.post('/register', async (req,res)=> {
             });
         }
 
-        // cek tidak email kembar
+        // cek tidak ada email kembar
         let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
         if(resu.length > 0){
             return res.status(400).json({
                 'error msg': 'Email telah digunakan!'
+            });
+        }
+
+
+        // cek tidak ada username kembar
+        let resu = await db.query(`SELECT * FROM users WHERE username='${req.body.username}'`);
+        if(resu.length > 0){
+            return res.status(400).json({
+                'error msg': 'Username telah digunakan!'
             });
         }
 
@@ -139,37 +148,27 @@ router.post('/register', async (req,res)=> {
         
 
         // gen unique code
-        let unique_code = '';
+        let imageId = '-';
         do{
             flag = false;
-            unique_code = genID(8,1);
-            resu = await db.query(`SELECT * FROM users WHERE unique_code='${unique_code}'`);
+            imageId = genID(255, 1);
+            resu = await db.query(`SELECT * FROM users WHERE image_id='${imageId}'`);
             if(resu.length > 0){
                 flag = true;
             }
         } while(flag)
 
-        // cek role
-        resu = await db.query(`SELECT * FROM roles WHERE UPPER(name)=UPPER('${req.body.role_name}')`);
-        if(resu.length == 0){
-            return res.status(404).json({
-                'error msg': 'Role tidak ditemukan!'
-            });
-        }
-
         // insert
-        await db.query(`INSERT INTO users VALUES(null, '${resu[0].id}', '${req.body.name}', '${req.body.telephone_number}', '${req.body.email}', ${req.body.age}, ${req.body.height}, ${req.body.weight}, '${req.body.gender}', '${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}', '${unique_code}', null, CURRENT_TIMESTAMP, null)`);
+        await db.query(`INSERT INTO users VALUES(null, '${req.body.username}', '${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}', '${req.body.email}', null, '${req.body.name}', '${req.body.description}', '${imageId}', 1, CURRENT_TIMESTAMP, null)`);
 
         return res.status(201).json({
             'message': 'Register Berhasil!',
             'data':{
-                'Email': req.body.email,
-                'No Telepon': req.body.telephone_number,
-                'Nama User': req.body.name,
-                'age': req.body.age,
-                'height': req.body.height,
-                'weight': req.body.weight,
-                'unique_code': unique_code,
+                'username': req.body.username,
+                'email': req.body.email,
+                'name': req.body.name,
+                'description': req.body.description,
+                'image_id': imageId,
             },
             'status': 'Success'
         });
@@ -185,12 +184,15 @@ router.post('/register', async (req,res)=> {
 
 // user login
 router.post('/login', async (req,res)=> {
-    if(req.body.email && req.body.password){
-        let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
+    if(req.body.emailUsername && req.body.password){
+        let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.emailUsername}'`);
         if(resu.length == 0) {
-            return res.status(404).json({
-                'error msg': `Email tidak ditemukan!`
-            });
+            resu = await db.query(`SELECT * FROM users WHERE username='${req.body.emailUsername}'`);
+            if(resu.length == 0) {
+                return res.status(404).json({
+                    'error msg': `Username/Email tidak ditemukan!`
+                });
+            }
         }
 
         resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}' AND password='${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}'`);
@@ -202,6 +204,7 @@ router.post('/login', async (req,res)=> {
 
         // membuat token dari jwt
         let token = jwt.sign({
+                'username': resu[0].username,
                 'email':resu[0].email,
                 'password':resu[0].password
             },
@@ -211,8 +214,9 @@ router.post('/login', async (req,res)=> {
         return res.status(200).json({
             'message': 'Login Berhasil!',
             'data':{
-                'nama_user': resu[0].name,
-                'role': resu[0].role_id,
+                'username': resu[0].username,
+                'email': resu[0].email,
+                'name': resu[0].name,
                 'token' : token
             },
             'Status': 'Success',
@@ -246,12 +250,12 @@ router.get('/profile/resetPassword/request', async(req,res)=>{
             });
         }
 
-        let otp = genID(5, 2);
+        let otp = genID(6, 2);
         const mailOptions = {
             from: process.env.email,
             to: req.body.email,
             subject: 'Reset Password',
-            text: 'Your OTP : ' + otp
+            text: 'Your OTP : ' + otp + '\n' + 'Do not share this with anyone!'
         };
 
         await transporter.sendMail(mailOptions, function(error, info){

@@ -54,7 +54,7 @@ const upload = multer({
 //fungsi middleware
 const {
     cekJWT,
-    verifyOTP
+    verifyCode
 } = require("../middleware");
 
 
@@ -91,13 +91,13 @@ router.post('/register', async (req,res)=> {
     if(req.body.username && req.body.name && req.body.email
         && req.body.description && req.body.password && req.body.confirm_password
     ){
-        // cek no telp angka saja
-        // let num = /^\d+$/.test(req.body.telephone_number);
-        // if(!num) {
-        //     return res.status(400).json({
-        //         'error msg': 'No telepon harus angka semua!'
-        //     });
-        // }
+        // cek age angka saja
+        let num = /^\d+$/.test(req.body.age);
+        if(!num) {
+            return res.status(400).json({
+                'error msg': 'Umur harus angka semua!'
+            });
+        }
 
         // // no telp length = 12
         // if(req.body.telephone_number.length > 12){
@@ -127,24 +127,12 @@ router.post('/register', async (req,res)=> {
 
 
         // cek tidak ada username kembar
-        let resu = await db.query(`SELECT * FROM users WHERE username='${req.body.username}'`);
+        resu = await db.query(`SELECT * FROM users WHERE username='${req.body.username}'`);
         if(resu.length > 0){
             return res.status(400).json({
                 'error msg': 'Username telah digunakan!'
             });
         }
-
-        // gen id
-        // let flag = false;
-        // let id = '';
-        // do{
-        //     flag = false;
-        //     id = genID(9,1);
-        //     resu = await db.query(`SELECT * FROM users WHERE id='${id}'`);
-        //     if(resu.length > 0){
-        //         flag = true;
-        //     }
-        // } while(flag)
         
 
         // gen unique code
@@ -159,7 +147,7 @@ router.post('/register', async (req,res)=> {
         } while(flag)
 
         // insert
-        await db.query(`INSERT INTO users VALUES(null, '${req.body.username}', '${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}', '${req.body.email}', null, '${req.body.name}', '${req.body.description}', '${imageId}', 1, CURRENT_TIMESTAMP, null)`);
+        await db.query(`INSERT INTO users VALUES(null, '${req.body.username}', '${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}', '${req.body.email}', null, '${req.body.name}', ${req.body.age}, '${req.body.description}', '${imageId}', 1, CURRENT_TIMESTAMP, null)`);
 
         return res.status(201).json({
             'message': 'Register Berhasil!',
@@ -167,6 +155,7 @@ router.post('/register', async (req,res)=> {
                 'username': req.body.username,
                 'email': req.body.email,
                 'name': req.body.name,
+                'age': req.body.age,
                 'description': req.body.description,
                 'image_id': imageId,
             },
@@ -195,7 +184,7 @@ router.post('/login', async (req,res)=> {
             }
         }
 
-        resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}' AND password='${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}'`);
+        resu = await db.query(`SELECT * FROM users WHERE (email='${req.body.emailUsername}' OR username='${req.body.emailUsername}') AND password='${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}'`);
         if(resu.length == 0) {
             return res.status(400).json({
                 'error msg': 'Password salah!'
@@ -241,7 +230,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // request user reset password
-router.get('/profile/resetPassword/request', async(req,res)=>{
+router.get('/profile/password/requestReset', async(req,res)=>{
     if(req.body.email){
         let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
         if(resu.length == 0) {
@@ -250,30 +239,39 @@ router.get('/profile/resetPassword/request', async(req,res)=>{
             });
         }
 
-        let otp = genID(6, 2);
+        let ver_code = genID(6, 2);
         const mailOptions = {
             from: process.env.email,
             to: req.body.email,
             subject: 'Reset Password',
-            text: 'Your OTP : ' + otp + '\n' + 'Do not share this with anyone!'
+            text: 'Your Verification Code : ' + ver_code + '\n' + 'Do not share this with anyone!' + '\n' + 'Remember WICKED is good!'
         };
 
         await transporter.sendMail(mailOptions, function(error, info){
             if (error) {
                 console.log(error);
+                return res.status(403).json({
+                    'message': 'Auth Problem!',
+                    'data':{
+                        'email env': process.env.email,
+                        'pass env': process.env.password,
+                        'body email': req.body.email
+                    },
+                    'status': 'Error'
+                });
             } else {
                 console.log('Email sent: ' + info.response);
             }
         });
 
-        // update OTP
-        await db.query(`UPDATE users SET otp='${otp}' WHERE id='${resu[0].id}'`);
+        // update verification_code
+        await db.query(`UPDATE users SET verification_code='${ver_code}' WHERE id='${resu[0].id}'`);
 
         return res.status(200).json({
             'message': 'Request Berhasil!',
             'data':{
                 'email': req.body.email,
-                'OTP' : otp
+                'Verification code' : ver_code
             },
             'Status': 'Success',
         });
@@ -288,7 +286,7 @@ router.get('/profile/resetPassword/request', async(req,res)=>{
 });
 
 // reset user password
-router.patch('/profile/password/reset', verifyOTP, async(req,res)=>{
+router.patch('/profile/password/reset', verifyCode, async(req,res)=>{
     if(req.body.email && req.body.new_password && req.body.confirm_password){
         // cek cpass dan pass
         if(req.body.new_password != req.body.confirm_password){
@@ -301,7 +299,7 @@ router.patch('/profile/password/reset', verifyOTP, async(req,res)=>{
         }
 
         // update
-        await db.query(`UPDATE users SET password='${CryptoJS.SHA3(req.body.new_password, { outputLength: 256 })}', otp='-' WHERE email='${req.body.email}'`);
+        await db.query(`UPDATE users SET password='${CryptoJS.SHA3(req.body.new_password, { outputLength: 256 })}', verification_code='-' WHERE email='${req.body.email}'`);
 
         return res.status(200).json({
             'message': 'Success ganti password!',
@@ -331,17 +329,9 @@ router.get('/profile', cekJWT, async(req,res)=>{
 
 //updating user profile
 router.patch('/profile/update', cekJWT, async(req,res)=>{
-    if(req.body.name && req.body.telephone_number && req.body.age && req.body.height && req.body.weight){
-        // cek no telp angka saja
-        let num = /^\d+$/.test(req.body.telephone_number);
-        if(!num) {
-            return res.status(400).json({
-                'error msg': 'No telepon harus angka semua!'
-            });
-        }
-
+    if(req.body.name && req.body.description && req.body.age && req.body.image_id){
         // update
-        await db.query(`UPDATE users SET name='${req.body.name}', telephone_number='${req.body.telephone_number}', age=${req.body.age}, height=${req.body.height}, weight=${req.body.weight} WHERE id='${req.user.id}'`);
+        await db.query(`UPDATE users SET name='${req.body.name}', age=${req.body.age}, description='${req.body.description}',  image_id='${req.body.image_id} 'WHERE id='${req.user.id}'`);
 
         return res.status(200).json({
             'message': 'Success update profile!',
@@ -371,7 +361,14 @@ router.patch('/profile/password/udpate', cekJWT, async(req,res)=>{
             });
         }
 
-        // cek cpass dan pass
+        // cek old pass dan new pass
+        if(req.body.new_password != req.body.old_password){
+            return res.status(400).json({
+                'error msg': 'New Password dan Old password harus beda!'
+            });
+        }
+
+        // cek cpass dan new pass
         if(req.body.new_password != req.body.confirm_password){
             return res.status(400).json({
                 'error msg': 'New Password dan Confirm password harus sama!'
@@ -398,5 +395,167 @@ router.patch('/profile/password/udpate', cekJWT, async(req,res)=>{
     }
 });
 
+// serach user
+router.get('/searchUser', cekJWT, async(req,res)=>{
+    if(req.body.target_user){
+        let final = []
+        let resu = await db.query(`SELECT * FROM users WHERE username LIKE %'${req.body.target_user}'% OR name LIKE %'${req.body.target_user}'% AND id!='${req.user.id}'`);
+        if(resu.length > 0) {
+            // cek di block oleh user lain tidak, jika kita yang block user lain maka masi bisa ada di serach
+            let status = null
+            for(let i=0; i < resu.length; i++){
+                // cek hubungan target ke kita apa
+                let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${resu[i].id}' AND followed_user_id='${req.user.id}' ORDER BY id DESC`);
+                if(temp.length == 0){
+                    // belum ada relationship brrt tidak diblock
+                    // tambahkan hubungan kita ke user target itu apa
+                    temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND followed_user_id='${resu[i].id}' ORDER BY id DESC`);
+                    status = -1 // no relation
+                    if(temp.length > 0){
+                        status = temp[0].status 
+                    }
+                    resu[i].relationStatus = status
+
+                    final.push(resu[i])
+                }else{
+                    if(parseInt(temp[0].status) != 2){
+                        // jika tidak diblock (0 / 1) dimasukin
+                        // tambahkan hubungan kita ke user target itu apa
+                        temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND followed_user_id='${resu[i].id}' ORDER BY id DESC`);
+                        status = -1 // no relation
+                        if(temp.length > 0){
+                            status = temp[0].status 
+                        }
+                        resu[i].relationStatus = status
+
+                        final.push(resu[i])
+                    }
+                }
+            }
+            
+        }
+
+        return res.status(200).json({
+            'message': 'User Search Result!',
+            'data': final,
+            'status' : 'Success'
+        });
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
+
+
+// follow
+router.post('/follow', cekJWT, async (req,res)=> {
+    if(req.body.target_user_id){
+        // insert new notif
+        let newNotifId = null
+        await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_user_id}', '${req.user.username} started following you', 0, 1, CURRENT_TIMESTAMP, null)`, function (err, result) {
+            if (err) throw err;
+            newNotifId = result.insertId;
+            console.log("id baru" + result.insertId)
+        });
+
+        let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND followed_user_id='${req.body.target_user_id}'`);
+        if(resu.length == 0) {
+            // INSERT 
+        } else {
+            //UPDATE, jika sudah pernah follow, jan lupa update norif id baru juga
+        }
+
+        return res.status(200).json({
+            'message': 'Follow Berhasil!',
+            'data':{
+            },
+            'Status': 'Success',
+        });
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
+
+// unfollow
+router.patch('/unfollow', cekJWT, async (req,res)=> {
+    if(req.body.target_user_id){
+        // UPDATE Status jadi 0 
+        let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND followed_user_id='${req.body.target_user_id}'`);
+        await db.query(`UPDATE user_relationships SET status=0 WHERE id='${resu[0].id}'`);
+
+        // Update notif follow sebelumnya jadi tidak aktif
+        await db.query(`UPDATE notifications SET status=0 WHERE id='${resu[0].notif_id}'`);
+
+        return res.status(200).json({
+            'message': 'Unfollow Berhasil!',
+            'data':{
+            },
+            'Status': 'Success',
+        });
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
+
+// block
+router.post('/block', cekJWT, async (req,res)=> {
+    if(req.body.target_user_id){
+        // update user relationship
+        await db.query(`UPDATE user_relationships SET status=2 WHERE user_id='${req.user.id}' AND followed_user_id='${req.body.target_user_id}'`);
+
+        return res.status(200).json({
+            'message': 'Block Berhasil!',
+            'data':{
+                'user_id': req.user.id, 
+                'followed_user_id': req.body.target_user_id
+            },
+            'Status': 'Success',
+        });
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
+
+// show followers user, yang diliat user_id (yang follow kita)
+router.get('/followers', cekJWT, async(req,res)=>{
+    let resu = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${req.user.id}' AND status=1`);
+    
+    return res.status(200).json({
+        'message': 'Followers Result!',
+        'data': resu,
+        'status' : 'Success'
+    });   
+});
+
+
+// show following user, yang diliat followed_user_id (yang kita follow)
+router.get('/following', cekJWT, async(req,res)=>{
+    let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND status=1`);
+    
+    return res.status(200).json({
+        'message': 'Following Result!',
+        'data': resu,
+        'status' : 'Success'
+    });   
+});
 
 module.exports = router;

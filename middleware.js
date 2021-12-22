@@ -34,19 +34,19 @@ async function cekJWT(req, res, next){
     next();
 }
 
-async function verifyOTP(req, res, next) {
+async function verifyCode(req, res, next) {
     let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
-    if(resu[0].otp == '-'){
+    if(resu[0].verification_code == '-'){
         return res.status(400).json({
-            'message': 'Request OTP dulu!',
+            'message': 'Request Verification code dulu!',
             'data':{
             },
             'status': 'Error'
         });
     }
-    if(req.body.otp != resu[0].otp){
+    if(req.body.verification_code != resu[0].verification_code){
         return res.status(400).json({
-            'message': 'OTP yang dimasukan salah!',
+            'message': 'Verification code yang dimasukan salah!',
             'data':{
             },
             'status': 'Error'
@@ -134,7 +134,7 @@ module.exports = {
     'authAdminKantinSehat': authAdminKantinSehat,
     'authAdminStall': authAdminStall,
     'authAdminSekolah': authAdminSekolah,
-    'verifyOTP': verifyOTP,
+    'verifyCode': verifyCode,
     'cekJWT': cekJWT,
     'cekTagihanBulanLalu': cekTagihanBulanLalu
 };

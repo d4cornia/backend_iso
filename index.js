@@ -12,11 +12,11 @@ app.use(express.json());
 
 const port = process.env.PORT || 3001;
 
-// const user = require('./routes/user');
+const user = require('./routes/user');
 // const admin_kantin_sehat = require('./routes/admin_kantin_sehat');
 // const stall_admin = require('./routes/stall_admin');
 // const school_admin = require('./routes/school_admin');
-// app.use('/api/users/', user);
+app.use('/api/users/', user);
 // app.use('/api/admin_kantin_sehat/', admin_kantin_sehat);
 // app.use('/api/stall_admin/', stall_admin);
 // app.use('/api/school_admin/', school_admin);

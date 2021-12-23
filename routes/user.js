@@ -395,7 +395,7 @@ router.patch('/profile/password/udpate', cekJWT, async(req,res)=>{
     }
 });
 
-// serach user
+// search user
 router.get('/searchUser', cekJWT, async(req,res)=>{
     if(req.body.target_user){
         let final = []
@@ -454,27 +454,36 @@ router.get('/searchUser', cekJWT, async(req,res)=>{
 // follow
 router.post('/follow', cekJWT, async (req,res)=> {
     if(req.body.target_user_id){
-        // insert new notif
-        let newNotifId = null
-        await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_user_id}', '${req.user.username} started following you', 0, 1, CURRENT_TIMESTAMP, null)`, function (err, result) {
-            if (err) throw err;
-            newNotifId = result.insertId;
-            console.log("id baru" + result.insertId)
-        });
 
+        // insert new notif
+      
         let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND followed_user_id='${req.body.target_user_id}'`);
         if(resu.length == 0) {
             // INSERT 
-        } else {
-            //UPDATE, jika sudah pernah follow, jan lupa update norif id baru juga
-        }
+            // let newNotifId = null
+            await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_user_id}', '${req.user.username} started following you', 0, 1, CURRENT_TIMESTAMP, null)`);
 
-        return res.status(200).json({
-            'message': 'Follow Berhasil!',
-            'data':{
-            },
-            'Status': 'Success',
-        });
+            let notifId = await db.query(`SELECT * FROM notifications WHERE sender_id='${req.user.id}' AND receiver_id='${req.body.target_user_id}'`);
+            await db.query(`INSERT INTO user_relationships VALUES(null, '${req.user.id}', '${req.body.target_user_id}', 1, ${notifId[0].id} , CURRENT_TIMESTAMP, null)`);
+            return res.status(200).json({
+                'message': 'Follow Berhasil!',
+                'data':{
+                },
+                'Status': 'Success',
+            });
+        } else {
+            //UPDATE, jika sudah pernah follow, jan lupa update notif id baru juga
+            await db.query(`UPDATE user_relationships SET status=1 WHERE id='${resu[0].id}'`);
+            await db.query(`UPDATE notifications SET is_read=0 , status=1 WHERE id='${resu[0].notif_id}'`);
+
+            return res.status(200).json({
+                'message': 'Follow Berhasil!',
+                'data':{
+                },
+                'Status': 'Success',
+            });
+        }
+        
     }else{
         return res.status(400).json({
             'message': 'Inputan Belum lengkap!',
@@ -556,6 +565,52 @@ router.get('/following', cekJWT, async(req,res)=>{
         'data': resu,
         'status' : 'Success'
     });   
+});
+
+// user post
+router.post('/post',cekJWT, async (req,res)=> {
+    //cek field kosong
+    if(req.body.caption){
+
+        // let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND followed_user_id='${req.body.target_user_id}'`);
+        // if(resu.length == 0) {
+        //     // INSERT 
+        // } else    {
+        //     //UPDATE, jika sudah pernah follow, jan lupa update norif id baru juga
+        // }
+
+        //req.body.user_id
+        //req.user.id
+
+        let imageId = '-';
+        do{
+            flag = false;
+            imageId = genID(255, 1);
+            resu = await db.query(`SELECT * FROM users WHERE image_id='${imageId}'`);
+            if(resu.length > 0){
+                flag = true;
+            }
+        } while(flag)
+
+        await db.query(`INSERT INTO posts VALUES(null, '${req.user.id}', '${imageId}', '${req.body.caption}', '${req.body.tag}', 1, CURRENT_TIMESTAMP, null)`);
+
+        return res.status(200).json({
+            'message': 'Post Berhasil!',
+            'data':{
+                'user_id':req.user.id,
+                'image_id':imageId,
+            },
+            'Status': 'Success',
+        });
+
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
 });
 
 module.exports = router;

@@ -9,6 +9,7 @@ app.use(cors())
 // app.set('view engine','ejs');
 const db = require("./connection");
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const port = process.env.PORT || 3001;
 
@@ -20,7 +21,6 @@ app.use('/api/users/', user);
 // app.use('/api/admin_kantin_sehat/', admin_kantin_sehat);
 // app.use('/api/stall_admin/', stall_admin);
 // app.use('/api/school_admin/', school_admin);
-
 
 app.get('/api/test/:pa', function (req, res){
     let values = ''

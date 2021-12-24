@@ -399,7 +399,7 @@ router.patch('/profile/password/udpate', cekJWT, async(req,res)=>{
 router.get('/searchUser', cekJWT, async(req,res)=>{
     if(req.body.target_user){
         let final = []
-        let resu = await db.query(`SELECT * FROM users WHERE username LIKE %'${req.body.target_user}'% OR name LIKE %'${req.body.target_user}'% AND id!='${req.user.id}'`);
+        let resu = await db.query(`SELECT * FROM users WHERE username LIKE %'${req.body.target_user}'% OR name LIKE %'${req.body.target_user}'% AND id!='${req.user.id}' AND status!=0`);
         if(resu.length > 0) {
             // cek di block oleh user lain tidak, jika kita yang block user lain maka masi bisa ada di serach
             let status = null
@@ -451,12 +451,10 @@ router.get('/searchUser', cekJWT, async(req,res)=>{
 });
 
 
-// follow
+// follow, R
 router.post('/follow', cekJWT, async (req,res)=> {
     if(req.body.target_user_id){
-
         // insert new notif
-      
         let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND followed_user_id='${req.body.target_user_id}'`);
         if(resu.length == 0) {
             // INSERT 
@@ -474,7 +472,7 @@ router.post('/follow', cekJWT, async (req,res)=> {
         } else {
             //UPDATE, jika sudah pernah follow, jan lupa update notif id baru juga
             await db.query(`UPDATE user_relationships SET status=1 WHERE id='${resu[0].id}'`);
-            await db.query(`UPDATE notifications SET is_read=0 , status=1 WHERE id='${resu[0].notif_id}'`);
+            await db.query(`UPDATE notifications SET is_read=0, status=1 WHERE id='${resu[0].notif_id}'`);
 
             return res.status(200).json({
                 'message': 'Follow Berhasil!',
@@ -494,7 +492,7 @@ router.post('/follow', cekJWT, async (req,res)=> {
     }
 });
 
-// unfollow
+// unfollow, R
 router.patch('/unfollow', cekJWT, async (req,res)=> {
     if(req.body.target_user_id){
         // UPDATE Status jadi 0 
@@ -502,7 +500,7 @@ router.patch('/unfollow', cekJWT, async (req,res)=> {
         await db.query(`UPDATE user_relationships SET status=0 WHERE id='${resu[0].id}'`);
 
         // Update notif follow sebelumnya jadi tidak aktif
-        await db.query(`UPDATE notifications SET status=0 WHERE id='${resu[0].notif_id}'`);
+        await db.query(`UPDATE notifications SET status=0, is_read=0 WHERE id='${resu[0].notif_id}'`);
 
         return res.status(200).json({
             'message': 'Unfollow Berhasil!',
@@ -555,7 +553,6 @@ router.get('/followers', cekJWT, async(req,res)=>{
     });   
 });
 
-
 // show following user, yang diliat followed_user_id (yang kita follow)
 router.get('/following', cekJWT, async(req,res)=>{
     let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND status=1`);
@@ -567,38 +564,56 @@ router.get('/following', cekJWT, async(req,res)=>{
     });   
 });
 
-// user post
-router.post('/post',cekJWT, async (req,res)=> {
-    //cek field kosong
-    if(req.body.caption){
 
-        // let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND followed_user_id='${req.body.target_user_id}'`);
-        // if(resu.length == 0) {
-        //     // INSERT 
-        // } else    {
-        //     //UPDATE, jika sudah pernah follow, jan lupa update norif id baru juga
-        // }
-
-        //req.body.user_id
-        //req.user.id
-
-        let imageId = '-';
-        do{
-            flag = false;
-            imageId = genID(255, 1);
-            resu = await db.query(`SELECT * FROM users WHERE image_id='${imageId}'`);
-            if(resu.length > 0){
-                flag = true;
+// show all post from following users
+router.get('/post/following', cekJWT, async(req,res)=>{
+    if(req.body.size){
+        let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND status=1`);
+        let final = [];
+        for (let i = 0; i < resu.length; i++){
+            let posts = await db.query(`SELECT * FROM posts WHERE user_id='${resu[i].followed_user_id}' AND status=1 ORDER BY DESC`);
+            for (let j = 0; j < req.body.size; j++) {
+                if(j == posts.length) {
+                    break
+                }
+                final.push(posts[i])
             }
-        } while(flag)
+        }
+        
+        return res.status(200).json({
+            'message': 'Following post Result!',
+            'data': final,
+            'status' : 'Success'
+        });  
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    } 
+});
 
-        await db.query(`INSERT INTO posts VALUES(null, '${req.user.id}', '${imageId}', '${req.body.caption}', '${req.body.tag}', 1, CURRENT_TIMESTAMP, null)`);
+// user post
+router.post('/post/upload', cekJWT, async (req,res)=> {
+    //cek field kosong
+    if(req.body.caption && req.body.image_id && req.body.tag){
+        let tags = ''
+        for(let i= 0; i < req.body.tag.length; i++){
+            tags += req.body.tag[i]
+            if(i < req.body.tag.length - 1){
+                tags += ', '
+            }
+        }
+
+        await db.query(`INSERT INTO posts VALUES(null, '${req.user.id}', '${req.body.image_id}', '${req.body.caption}', '${tags}', 1, CURRENT_TIMESTAMP, null)`);
 
         return res.status(200).json({
             'message': 'Post Berhasil!',
             'data':{
-                'user_id':req.user.id,
-                'image_id':imageId,
+                'user_id': req.user.id,
+                'image_id': req.body.image_id,
             },
             'Status': 'Success',
         });
@@ -612,5 +627,172 @@ router.post('/post',cekJWT, async (req,res)=> {
         });
     }
 });
+
+// delete post 
+router.delete('/post/delete', cekJWT, async(req, res) => {
+    if(req.body.target_post_id){
+        // update status 0 (deleted)
+            await db.query(`UPDATE posts SET status=0 WHERE id='${req.body.target_post_id}'`);
+            
+            return res.status(200).json({
+                'message': 'Berhasil soft delete post!',
+                'data':{
+                },
+                'status': 'Error'
+            });
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
+
+// like post
+router.post('/post/like', cekJWT, async (req,res)=> {
+    //cek field kosong
+    if(req.body.target_post_id){
+        // cek jika sudah ada ditable
+        let resu = await db.query(`SELECT * FROM user_likes WHERE user_id='${req.user.id}' AND post_id=${req.body.target_post_id} ORDER BY id DESC`);
+        if(resu.length == 0){
+            let post = await db.query(`SELECT * FROM posts WHERE id='${req.body.target_post_id}'`);
+            // insert new notif like 
+            await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${post[0].user_id}', '${req.user.username} has liked your post', 0, 2, CURRENT_TIMESTAMP, null)`, function (err, result) {
+                if (err) throw err;
+                // insert ke table user ike
+                await db.query(`INSERT INTO user_likes VALUES(null, '${req.user.id}', '${req.body.target_post_id}', 1, '${result.insertId}', 1, CURRENT_TIMESTAMP, null)`);
+            });
+        } else {
+            // update old notif like, jadi kembali like
+            await db.query(`UPDATE notifications SET status=2, is_read=0 WHERE id='${resu[0].notif_id}'`);
+
+            // update table user like
+            await db.query(`UPDATE user_likes SET status=1 WHERE id='${resu[0].id}'`);
+        }
+
+        return res.status(200).json({
+            'message': 'Like Berhasil!',
+            'data':{
+                'user_id': req.user.id,
+                'post_id': req.body.target_post_id,
+            },
+            'Status': 'Success',
+        });
+
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
+
+// unlike post
+router.post('/post/unlike', cekJWT, async (req,res)=> {
+    //cek field kosong
+    if(req.body.target_post_id){
+        let resu = await db.query(`SELECT * FROM user_likes WHERE user_id='${req.user.id}' AND post_id=${req.body.target_post_id} ORDER BY id DESC`);
+
+        // update old notif like, jadi unlike
+        await db.query(`UPDATE notifications SET status=0, is_read=0 WHERE id='${resu[0].notif_id}'`);
+
+        // update table user like
+        await db.query(`UPDATE user_likes SET status=0 WHERE id='${resu[0].id}'`);
+
+        return res.status(200).json({
+            'message': 'Unlike Berhasil!',
+            'data':{
+                'user_id': req.user.id,
+                'post_id': req.body.target_post_id,
+            },
+            'Status': 'Success',
+        });
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
+
+// search post dari hash tag, R
+router.get('/post/search', cekJWT, async(req,res)=>{
+
+})
+
+// get all comment suatu post data
+router.get('/post/comments', cekJWT, async(req,res) => {
+    if(req.body.target_post_id){
+        let resu = await db.query(`SELECT * FROM user_comments WHERE post_id='${req.body.target_post_id}' AND status=1`);
+        
+        return res.status(200).json({
+            'message': 'Post Comments Result!',
+            'data': resu,
+            'status' : 'Success'
+        }); 
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }  
+})
+
+// comment posts, R
+router.post('/post/comment', cekJWT, async (req,res)=> {
+    // cek field kosong
+    if(req.body.target_post_id && req.body.commentTexts){
+        // insert new notif
+        
+        // insert new comment
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
+
+// delete post comment
+router.delete('/post/comment/delete', cekJWT, async(req, res) => {
+    if(req.body.target_comment_id){
+        // update status comment jadi 0 (deleted)
+        await db.query(`UPDATE user_comments SET status=0 WHERE id='${req.body.target_post_id}'`);
+            
+        return res.status(200).json({
+            'message': 'Berhasil soft delete comment!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
+
+
+// get all notificaitons, R
+router.get('/notifications', cekJWT, async(req,res)=>{
+
+})
+
+
+// DM
+
 
 module.exports = router;

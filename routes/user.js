@@ -661,9 +661,10 @@ router.post('/post/like', cekJWT, async (req,res)=> {
             // insert new notif like 
             await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${post[0].user_id}', '${req.user.username} has liked your post', 0, 2, CURRENT_TIMESTAMP, null)`, function (err, result) {
                 if (err) throw err;
-                // insert ke table user ike
-                await db.query(`INSERT INTO user_likes VALUES(null, '${req.user.id}', '${req.body.target_post_id}', 1, '${result.insertId}', 1, CURRENT_TIMESTAMP, null)`);
             });
+
+            // insert ke table user like
+            await db.query(`INSERT INTO user_likes VALUES(null, '${req.user.id}', '${req.body.target_post_id}', 1, '${result.insertId}', 1, CURRENT_TIMESTAMP, null)`);
         } else {
             // update old notif like, jadi kembali like
             await db.query(`UPDATE notifications SET status=2, is_read=0 WHERE id='${resu[0].notif_id}'`);
@@ -723,14 +724,28 @@ router.post('/post/unlike', cekJWT, async (req,res)=> {
 
 // search post dari hash tag, R
 router.get('/post/search', cekJWT, async(req,res)=>{
-
+    if(req.body.keyword){
+        let resu = await db.query(`SELECT * FROM posts WHERE tag LIKE '%${req.body.keyword}%' `);
+        return res.status(200).json({
+            'message': 'Post Search Result!',
+            'data': resu,
+            'status' : 'Success'
+        }); 
+    }else{
+        return res.status(400).json({
+            'message': 'Tidak ada post!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
 })
 
 // get all comment suatu post data
 router.get('/post/comments', cekJWT, async(req,res) => {
     if(req.body.target_post_id){
         let resu = await db.query(`SELECT * FROM user_comments WHERE post_id='${req.body.target_post_id}' AND status=1`);
-        
+      
         return res.status(200).json({
             'message': 'Post Comments Result!',
             'data': resu,
@@ -751,8 +766,20 @@ router.post('/post/comment', cekJWT, async (req,res)=> {
     // cek field kosong
     if(req.body.target_post_id && req.body.commentTexts){
         // insert new notif
-        
+        await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_post_id}', '${req.user.username} comment on your post', 0, 1, CURRENT_TIMESTAMP, null)`);
+
         // insert new comment
+        let notifId = await db.query(`SELECT * FROM notifications WHERE sender_id='${req.user.id}' AND receiver_id='${req.body.target_post_id}' AND message LIKE '%comment%' `);
+        await db.query(`INSERT INTO user_comments VALUES(null, '${req.user.id}', '${req.body.target_post_id}','${req.body.commentTexts}', 1, ${notifId[0].id} , CURRENT_TIMESTAMP, null)`);
+
+        return res.status(200).json({
+            'message': 'Berhasil comment!',
+            'data': {
+                'post_id': req.body.target_post_id,
+                'comment': req.body.commentTexts
+        },
+            'status': 'Success'
+        });
     }else{
         return res.status(400).json({
             'message': 'Inputan Belum lengkap!',
@@ -773,7 +800,7 @@ router.delete('/post/comment/delete', cekJWT, async(req, res) => {
             'message': 'Berhasil soft delete comment!',
             'data':{
             },
-            'status': 'Error'
+            'status': 'Success'
         });
     }else{
         return res.status(400).json({
@@ -789,6 +816,12 @@ router.delete('/post/comment/delete', cekJWT, async(req, res) => {
 // get all notificaitons, R
 router.get('/notifications', cekJWT, async(req,res)=>{
 
+    let resu = await db.query(`SELECT * FROM notifications WHERE sender_id='${req.user.id}' AND status=1`);
+    return res.status(200).json({
+        'message': 'All Notification Result!',
+        'data':resu,
+        'status': 'Success'
+    });
 })
 
 

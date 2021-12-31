@@ -459,15 +459,17 @@ router.post('/follow', cekJWT, async (req,res)=> {
         if(resu.length == 0) {
             // INSERT 
             // let newNotifId = null
-            await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_user_id}', '${req.user.username} started following you', 0, 1, CURRENT_TIMESTAMP, null)`);
+            await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_user_id}', '${req.user.username} started following you', 0, 1, CURRENT_TIMESTAMP, null)`, async function (err, result) {
+                if (err) throw err;
 
-            let notifId = await db.query(`SELECT * FROM notifications WHERE sender_id='${req.user.id}' AND receiver_id='${req.body.target_user_id}'`);
-            await db.query(`INSERT INTO user_relationships VALUES(null, '${req.user.id}', '${req.body.target_user_id}', 1, ${notifId[0].id} , CURRENT_TIMESTAMP, null)`);
-            return res.status(200).json({
-                'message': 'Follow Berhasil!',
-                'data':{
-                },
-                'Status': 'Success',
+                await db.query(`INSERT INTO user_relationships VALUES(null, '${req.user.id}', '${req.body.target_user_id}', 1, ${result.resultId} , CURRENT_TIMESTAMP, null)`);
+
+                return res.status(200).json({
+                    'message': 'Follow Berhasil!',
+                    'data':{
+                    },
+                    'Status': 'Success',
+                });
             });
         } else {
             //UPDATE, jika sudah pernah follow, jan lupa update notif id baru juga
@@ -481,7 +483,6 @@ router.post('/follow', cekJWT, async (req,res)=> {
                 'Status': 'Success',
             });
         }
-        
     }else{
         return res.status(400).json({
             'message': 'Inputan Belum lengkap!',
@@ -598,7 +599,8 @@ router.get('/post/following', cekJWT, async(req,res)=>{
 // user post
 router.post('/post/upload', cekJWT, async (req,res)=> {
     //cek field kosong
-    if(req.body.caption && req.body.image_id && req.body.tag){
+    // type 1 = image, 2 = video
+    if(req.body.caption && req.body.cloudinary_id && req.body.tag && req.body.type){
         let tags = ''
         for(let i= 0; i < req.body.tag.length; i++){
             tags += req.body.tag[i]
@@ -607,13 +609,13 @@ router.post('/post/upload', cekJWT, async (req,res)=> {
             }
         }
 
-        await db.query(`INSERT INTO posts VALUES(null, '${req.user.id}', '${req.body.image_id}', '${req.body.caption}', '${tags}', 1, CURRENT_TIMESTAMP, null)`);
+        await db.query(`INSERT INTO posts VALUES(null, '${req.user.id}', '${req.body.cloudinary_id}', '${req.body.caption}', '${tags}', ${req.body.type}, CURRENT_TIMESTAMP, null)`);
 
         return res.status(200).json({
             'message': 'Post Berhasil!',
             'data':{
                 'user_id': req.user.id,
-                'image_id': req.body.image_id,
+                'cloudinary_id': req.body.cloudinary_id,
             },
             'Status': 'Success',
         });
@@ -725,7 +727,7 @@ router.post('/post/unlike', cekJWT, async (req,res)=> {
 // search post dari hash tag, R
 router.get('/post/search', cekJWT, async(req,res)=>{
     if(req.body.keyword){
-        let resu = await db.query(`SELECT * FROM posts WHERE tag LIKE '%${req.body.keyword}%' `);
+        let resu = await db.query(`SELECT * FROM posts WHERE tag LIKE '%${req.body.keyword}%' AND status!=0`);
         return res.status(200).json({
             'message': 'Post Search Result!',
             'data': resu,
@@ -745,7 +747,7 @@ router.get('/post/search', cekJWT, async(req,res)=>{
 router.get('/post/comments', cekJWT, async(req,res) => {
     if(req.body.target_post_id){
         let resu = await db.query(`SELECT * FROM user_comments WHERE post_id='${req.body.target_post_id}' AND status=1`);
-      
+
         return res.status(200).json({
             'message': 'Post Comments Result!',
             'data': resu,
@@ -767,13 +769,13 @@ router.post('/post/comment', cekJWT, async (req,res)=> {
     if(req.body.target_post_id && req.body.commentTexts){
         let resu = await db.query(`SELECT * FROM post WHERE id='${req.body.target_post_id}'`);
         // insert new notif
-        await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${resu[0].user_id}', '${req.user.username} commented on your post', 0, 1, CURRENT_TIMESTAMP, null)`, function (err, result) {
+        await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${resu[0].user_id}', '${req.user.username} commented on your post', 0, 3, CURRENT_TIMESTAMP, null)`, async function (err, result) {
             if (err) throw err;
 
             // insert new comment
             await db.query(`INSERT INTO user_comments VALUES(null, '${req.user.id}', '${req.body.target_post_id}','${req.body.commentTexts}', 1, ${result.insertId} , CURRENT_TIMESTAMP, null)`);
     
-            return res.status(200).json({
+            return res.status(201).json({
                 'message': 'Berhasil comment!',
                 'data': {
                     'post_id': req.body.target_post_id,
@@ -819,7 +821,7 @@ router.delete('/post/comment/delete', cekJWT, async(req, res) => {
 
 // get all notificaitons, R
 router.get('/notifications', cekJWT, async(req,res)=>{
-    let resu = await db.query(`SELECT * FROM notifications WHERE receiever_id='${req.user.id}' AND status=1`);
+    let resu = await db.query(`SELECT * FROM notifications WHERE receiever_id='${req.user.id}' AND status!=0`);
 
     return res.status(200).json({
         'message': 'All Notification Result!',
@@ -840,11 +842,81 @@ router.get('/notifications', cekJWT, async(req,res)=>{
 // delete dm, R
 
 // get all chats from a DM
+router.get('/dm/chats', cekJWT, async(req,res)=>{
+    if(req.body.dm_id){
+        let resu = await db.query(`SELECT * FROM chats WHERE dm_id='${req.body.dm_id}' AND status!=0`);
+
+        resu.unreadCtr = 0
+        for(let i = 0; i < resu.length; i++){
+            if(parseInt(resu[0].status) == 2) {
+                resu.unreadCtr++
+            }
+        }
+
+        return res.status(200).json({
+            'message': 'All Chats Result!',
+            'data': resu,
+            'status': 'Success'
+        });
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+})
+
 
 // chat 
+router.post('/dm/chats', cekJWT, async (req,res)=> {
+    if(req.body.dm_id && req.body.target_user_id && req.body.message) {
+        let resu = await db.query(`INSERT INTO chats VALUES(null, '${req.body.dm_id}', '${req.user.id}', '${req.body.target_user_id}', '${req.body.message}', 2, CURRENT_TIMESTAMP, null)`);
+        await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_user_id}', '${req.user.username} send you a message', 0, 4, CURRENT_TIMESTAMP, null)`);
+
+        return res.status(201).json({
+            'message': 'Send Chats success!',
+            'data': {
+                'dm_id': req.body.dm_id,
+                'target_user_id': req.body.target_user_id, 
+                'message': req.body.message, 
+                'resu': resu
+            },
+            'status': 'Success'
+        });
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+})
+
 
 // unsend chat from a DM
-
+router.delete('/dm/chats/delete', cekJWT, async(req, res) => {
+    if(req.body.chat_id){
+        // update status comment jadi 0 (deleted)
+        await db.query(`UPDATE chats SET status=0 WHERE id='${req.body.chat_id}'`);
+            
+        return res.status(200).json({
+            'message': 'Berhasil soft delete chat!',
+            'data':{
+            },
+            'status': 'Success'
+        });
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
 
 
 module.exports = router;

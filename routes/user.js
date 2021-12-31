@@ -765,21 +765,25 @@ router.get('/post/comments', cekJWT, async(req,res) => {
 router.post('/post/comment', cekJWT, async (req,res)=> {
     // cek field kosong
     if(req.body.target_post_id && req.body.commentTexts){
+        let resu = await db.query(`SELECT * FROM post WHERE id='${req.body.target_post_id}'`);
         // insert new notif
-        await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_post_id}', '${req.user.username} comment on your post', 0, 1, CURRENT_TIMESTAMP, null)`);
+        await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${resu[0].user_id}', '${req.user.username} commented on your post', 0, 1, CURRENT_TIMESTAMP, null)`, function (err, result) {
+            if (err) throw err;
 
-        // insert new comment
-        let notifId = await db.query(`SELECT * FROM notifications WHERE sender_id='${req.user.id}' AND receiver_id='${req.body.target_post_id}' AND message LIKE '%comment%' `);
-        await db.query(`INSERT INTO user_comments VALUES(null, '${req.user.id}', '${req.body.target_post_id}','${req.body.commentTexts}', 1, ${notifId[0].id} , CURRENT_TIMESTAMP, null)`);
-
-        return res.status(200).json({
-            'message': 'Berhasil comment!',
-            'data': {
-                'post_id': req.body.target_post_id,
-                'comment': req.body.commentTexts
-        },
-            'status': 'Success'
+            // insert new comment
+            await db.query(`INSERT INTO user_comments VALUES(null, '${req.user.id}', '${req.body.target_post_id}','${req.body.commentTexts}', 1, ${result.insertId} , CURRENT_TIMESTAMP, null)`);
+    
+            return res.status(200).json({
+                'message': 'Berhasil comment!',
+                'data': {
+                    'post_id': req.body.target_post_id,
+                    'comment': req.body.commentTexts
+            },
+                'status': 'Success'
+            });
         });
+
+        console.log('error')
     }else{
         return res.status(400).json({
             'message': 'Inputan Belum lengkap!',
@@ -815,8 +819,8 @@ router.delete('/post/comment/delete', cekJWT, async(req, res) => {
 
 // get all notificaitons, R
 router.get('/notifications', cekJWT, async(req,res)=>{
+    let resu = await db.query(`SELECT * FROM notifications WHERE receiever_id='${req.user.id}' AND status=1`);
 
-    let resu = await db.query(`SELECT * FROM notifications WHERE sender_id='${req.user.id}' AND status=1`);
     return res.status(200).json({
         'message': 'All Notification Result!',
         'data':resu,
@@ -825,7 +829,22 @@ router.get('/notifications', cekJWT, async(req,res)=>{
 })
 
 
+
+
 // DM
+
+// get all dm, R
+
+// make new dm, R
+
+// delete dm, R
+
+// get all chats from a DM
+
+// chat 
+
+// unsend chat from a DM
+
 
 
 module.exports = router;

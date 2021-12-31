@@ -831,15 +831,109 @@ router.get('/notifications', cekJWT, async(req,res)=>{
 })
 
 
-
-
 // DM
 
 // get all dm, R
+router.get('/dm', cekJWT, async(req,res)=>{
+    let resu = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND status = 1`);
+    let allResu= [];
+
+    let cekChat = null;
+    if(resu.length > 0){
+        //Cek ada chat
+        for(let i = 0; i < resu.length; i++){
+            // let cekChat = null;
+            cekChat = await db.query(`SELECT * FROM chats WHERE dm_relation='${resu[i].dm_relation}' AND user_sender_id='${req.user.id}' AND user_receiver_id='${resu[i].user_id_2}'
+            OR (dm_relation='${resu[i].dm_relation}' AND user_sender_id='${resu[i].user_id_2}' AND user_receiver_id='${req.user.id}')`);
+            
+            if(cekChat.length > 0){
+                allResu.push(resu[i])
+            }
+        }
+
+        return res.status(200).json({
+            'message': 'Get All DM!',
+            'data':allResu,
+            'status': 'Success'
+        });
+        
+    }else{
+        return res.status(400).json({
+            'message': 'Belum ada DM!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+
+})
 
 // make new dm, R
+router.post('/dm', cekJWT, async (req,res)=> {
+    // cek field kosong
+    if(req.body.target_user_id){
+
+        let cekData = await db.query(`SELECT * FROM dm`);
+        if(cekData.length>0){
+            let resu = await db.query(`SELECT MAX(dm_relation) FROM dm`);
+
+            // insert new notif
+            await db.query(`INSERT INTO dm VALUES(null,${resu[0]["MAX(dm_relation)"]+1}, '${req.user.id}', '${req.body.target_user_id}',1, CURRENT_TIMESTAMP, null)`);
+            await db.query(`INSERT INTO dm VALUES(null,${resu[0]["MAX(dm_relation)"]+1}, '${req.body.target_user_id}', '${req.user.id}',1, CURRENT_TIMESTAMP, null)`);
+
+            return res.status(201).json({
+                'message': 'Berhasil comment!',
+                'data': {
+                    'id_relation': resu[0]["MAX(dm_relation)"] + 1 ,
+                    'cekData':cekData
+            },
+                'status': 'Success'
+            });
+    
+        }else{
+            await db.query(`INSERT INTO dm VALUES(null,1,'${req.user.id}', '${req.body.target_user_id}',1, CURRENT_TIMESTAMP, null)`);
+            await db.query(`INSERT INTO dm VALUES(null,1,'${req.body.target_user_id}','${req.user.id}',1, CURRENT_TIMESTAMP, null)`);
+            return res.status(201).json({
+                'message': 'Berhasil Create DM!',
+                'data': {
+                    'target_user_id': req.body.target_user_id,
+                    'cekData':cekData
+            },
+                'status': 'Success'
+            });
+        }
+       
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
 
 // delete dm, R
+router.delete('/dm', cekJWT, async(req, res) => {
+    if(req.body.target_user_idd){
+        // update status comment jadi 0 (deleted)
+        await db.query(`UPDATE chats SET status=0 WHERE id='${req.body.chat_id}'`);
+            
+        return res.status(200).json({
+            'message': 'Berhasil soft delete chat!',
+            'data':{
+            },
+            'status': 'Success'
+        });
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
 
 // find user for create dm
 router.get('/dm/create/search', cekJWT, async(req,res)=>{

@@ -872,35 +872,45 @@ router.get('/dm', cekJWT, async(req,res)=>{
 router.post('/dm', cekJWT, async (req,res)=> {
     // cek field kosong
     if(req.body.target_user_id){
-
-        let cekData = await db.query(`SELECT * FROM dm`);
-        if(cekData.length>0){
-            let resu = await db.query(`SELECT MAX(dm_relation) FROM dm`);
-
-            // insert new notif
-            await db.query(`INSERT INTO dm VALUES(null,${resu[0]["MAX(dm_relation)"]+1}, '${req.user.id}', '${req.body.target_user_id}',1, CURRENT_TIMESTAMP, null)`);
-            await db.query(`INSERT INTO dm VALUES(null,${resu[0]["MAX(dm_relation)"]+1}, '${req.body.target_user_id}', '${req.user.id}',1, CURRENT_TIMESTAMP, null)`);
-
-            return res.status(201).json({
-                'message': 'Berhasil comment!',
-                'data': {
-                    'id_relation': resu[0]["MAX(dm_relation)"] + 1 ,
-                    'cekData':cekData
-            },
-                'status': 'Success'
-            });
-    
-        }else{
-            await db.query(`INSERT INTO dm VALUES(null,1,'${req.user.id}', '${req.body.target_user_id}',1, CURRENT_TIMESTAMP, null)`);
-            await db.query(`INSERT INTO dm VALUES(null,1,'${req.body.target_user_id}','${req.user.id}',1, CURRENT_TIMESTAMP, null)`);
-            return res.status(201).json({
+       
+        let cekUpdate = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND user_id_2='${req.body.target_user_id}'`);
+        if(cekUpdate.length>0){
+            await db.query(`UPDATE dm SET status=1 WHERE user_id_1='${req.user.id}' AND user_id_2='${req.body.target_user_id}'`);
+            return res.status(200).json({
                 'message': 'Berhasil Create DM!',
-                'data': {
-                    'target_user_id': req.body.target_user_id,
-                    'cekData':cekData
-            },
+                'data':{
+                },
                 'status': 'Success'
             });
+        }else{
+
+            let cekData = await db.query(`SELECT * FROM dm`);
+            if(cekData.length>0){
+                let resu = await db.query(`SELECT MAX(dm_relation) FROM dm`);
+    
+                // insert new notif
+                await db.query(`INSERT INTO dm VALUES(null,${resu[0]["MAX(dm_relation)"]+1}, '${req.user.id}', '${req.body.target_user_id}',1, CURRENT_TIMESTAMP, null)`);
+                await db.query(`INSERT INTO dm VALUES(null,${resu[0]["MAX(dm_relation)"]+1}, '${req.body.target_user_id}', '${req.user.id}',1, CURRENT_TIMESTAMP, null)`);
+    
+                return res.status(201).json({
+                    'message': 'Berhasil Create DM!',
+                    'data': {
+                        'id_relation': resu[0]["MAX(dm_relation)"] + 1
+                },
+                    'status': 'Success'
+                });
+        
+            }else{
+                await db.query(`INSERT INTO dm VALUES(null,1,'${req.user.id}', '${req.body.target_user_id}',1, CURRENT_TIMESTAMP, null)`);
+                await db.query(`INSERT INTO dm VALUES(null,1,'${req.body.target_user_id}','${req.user.id}',1, CURRENT_TIMESTAMP, null)`);
+                return res.status(201).json({
+                    'message': 'Berhasil Create DM!',
+                    'data': {
+                        'target_user_id': req.body.target_user_id
+                },
+                    'status': 'Success'
+                });
+            }
         }
        
     }else{
@@ -915,12 +925,12 @@ router.post('/dm', cekJWT, async (req,res)=> {
 
 // delete dm, R
 router.delete('/dm', cekJWT, async(req, res) => {
-    if(req.body.target_user_idd){
+    if(req.body.target_user_id){
         // update status comment jadi 0 (deleted)
-        await db.query(`UPDATE chats SET status=0 WHERE id='${req.body.chat_id}'`);
-            
+        await db.query(`UPDATE dm SET status=0 WHERE user_id_1='${req.user.id}' AND user_id_2='${req.body.target_user_id}'`);
+        
         return res.status(200).json({
-            'message': 'Berhasil soft delete chat!',
+            'message': 'Berhasil soft delete DM!',
             'data':{
             },
             'status': 'Success'
@@ -936,25 +946,25 @@ router.delete('/dm', cekJWT, async(req, res) => {
 });
 
 // find user for create dm
-router.get('/dm/create/search', cekJWT, async(req,res)=>{
-    let final = []
-    let resu = await db.query(`SELECT * FROM users WHERE status!=0 AND id!='${req.user.id}'`);
+// router.get('/dm/create/search', cekJWT, async(req,res)=>{
+//     let final = []
+//     let resu = await db.query(`SELECT * FROM users WHERE status!=0 AND id!='${req.user.id}'`);
 
-    resu.forEach(obj => {
-        let temp = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND user_id_2='${obj.id}' status!=0`);
-        // jika user yang sedang login TIDAK pernah mengchat target user(obj) maka push
-        if(temp.lengh == 0){
-            final.push(obj)
-        }
-    });
+//     resu.forEach(obj => {
+//         let temp = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND user_id_2='${obj.id}' status!=0`);
+//         // jika user yang sedang login TIDAK pernah mengchat target user(obj) maka push
+//         if(temp.lengh == 0){
+//             final.push(obj)
+//         }
+//     });
 
-    return res.status(200).json({
-        'message': 'All users that is available for dm result!',
-        'data': final,
-        'status': 'Success'
-    });
+//     return res.status(200).json({
+//         'message': 'All users that is available for dm result!',
+//         'data': final,
+//         'status': 'Success'
+//     });
 
-})
+// })
 
 // get all chats from a DM
 router.get('/dm/chats', cekJWT, async(req,res)=>{

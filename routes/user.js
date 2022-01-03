@@ -7,6 +7,15 @@ const router = express.Router();
 const axios = require("axios").default;
 const nodemailer = require('nodemailer');
 const CryptoJS = require("crypto-js");
+const Pusher = require("pusher");
+
+const pusher = new Pusher({
+    appId: "1325352",
+    key: "f1a87665adcea5a04ace",
+    secret: "484dfaff8f3f3df24910",
+    cluster: "ap1",
+    useTLS: true
+});
 
 // encrypt decrypt with AES
 // const encrypt = (text) => {
@@ -23,32 +32,32 @@ const CryptoJS = require("crypto-js");
 
 
 // multer config
-const storage = multer.diskStorage({
-    destination:function(req, file, callback){
-        callback(null,'./public/photos');
-    },
-    filename:async function(req, file, callback){
-        const extension = file.originalname.split('.')[file.originalname.split('.').length-1];
-        let filename = req.body.name;
-        callback(null, (filename +'.'+extension));
-    }
-});
-function checkFileType(file,cb){
-    const filetypes= /jpg|png|jpeg/;
-    const extname=filetypes.test(file.originalname.split('.')[file.originalname.split('.').length-1]);
-    const mimetype=filetypes.test(file.mimetype);
-    if(mimetype && extname){
-        return cb(null,true);
-    }else{
-        cb(error = 'Error : foto only!');
-    }
-}
-const upload = multer({
-    storage:storage,
-    fileFilter: function(req,file,cb){
-        checkFileType(file,cb);
-    }
-});
+// const storage = multer.diskStorage({
+//     destination:function(req, file, callback){
+//         callback(null,'./public/photos');
+//     },
+//     filename:async function(req, file, callback){
+//         const extension = file.originalname.split('.')[file.originalname.split('.').length-1];
+//         let filename = req.body.name;
+//         callback(null, (filename +'.'+extension));
+//     }
+// });
+// function checkFileType(file,cb){
+//     const filetypes= /jpg|png|jpeg/;
+//     const extname=filetypes.test(file.originalname.split('.')[file.originalname.split('.').length-1]);
+//     const mimetype=filetypes.test(file.mimetype);
+//     if(mimetype && extname){
+//         return cb(null,true);
+//     }else{
+//         cb(error = 'Error : foto only!');
+//     }
+// }
+// const upload = multer({
+//     storage:storage,
+//     fileFilter: function(req,file,cb){
+//         checkFileType(file,cb);
+//     }
+// });
 
 
 //fungsi middleware
@@ -872,9 +881,9 @@ router.get('/dm', cekJWT, async(req,res)=>{
 router.post('/dm', cekJWT, async (req,res)=> {
     // cek field kosong
     if(req.body.target_user_id){
-       
         let cekUpdate = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND user_id_2='${req.body.target_user_id}'`);
         if(cekUpdate.length>0){
+            // update
             await db.query(`UPDATE dm SET status=1 WHERE user_id_1='${req.user.id}' AND user_id_2='${req.body.target_user_id}'`);
             return res.status(200).json({
                 'message': 'Berhasil Create DM!',
@@ -883,7 +892,7 @@ router.post('/dm', cekJWT, async (req,res)=> {
                 'status': 'Success'
             });
         }else{
-
+            // insert
             let cekData = await db.query(`SELECT * FROM dm`);
             if(cekData.length>0){
                 let resu = await db.query(`SELECT MAX(dm_relation) FROM dm`);
@@ -912,7 +921,6 @@ router.post('/dm', cekJWT, async (req,res)=> {
                 });
             }
         }
-       
     }else{
         return res.status(400).json({
             'message': 'Inputan Belum lengkap!',
@@ -945,31 +953,31 @@ router.delete('/dm', cekJWT, async(req, res) => {
     }
 });
 
-// find user for create dm
-// router.get('/dm/create/search', cekJWT, async(req,res)=>{
-//     let final = []
-//     let resu = await db.query(`SELECT * FROM users WHERE status!=0 AND id!='${req.user.id}'`);
+// find all users for create dm
+router.get('/dm/create/search', cekJWT, async(req,res)=>{
+    let final = []
+    let resu = await db.query(`SELECT * FROM users WHERE status!=0 AND id!='${req.user.id}'`);
 
-//     resu.forEach(obj => {
-//         let temp = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND user_id_2='${obj.id}' status!=0`);
-//         // jika user yang sedang login TIDAK pernah mengchat target user(obj) maka push
-//         if(temp.lengh == 0){
-//             final.push(obj)
-//         }
-//     });
+    resu.forEach(async (obj) => {
+        let temp = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND user_id_2='${obj.id}' status!=0`);
+        // jika user yang sedang login TIDAK pernah mengchat target user(obj) maka push
+        if(temp.lengh == 0){
+            final.push(obj)
+        }
+    });
 
-//     return res.status(200).json({
-//         'message': 'All users that is available for dm result!',
-//         'data': final,
-//         'status': 'Success'
-//     });
+    return res.status(200).json({
+        'message': 'All users that is available for dm result!',
+        'data': final,
+        'status': 'Success'
+    });
 
-// })
+})
 
 // get all chats from a DM
-router.get('/dm/chats', cekJWT, async(req,res)=>{
-    if(req.body.dm_relation){
-        let resu = await db.query(`SELECT * FROM chats WHERE dm_relation='${req.body.dm_relation}' AND status!=0`);
+router.get('/dm/chats/:dm_relation', cekJWT, async(req,res)=>{
+    if(req.params.dm_relation){
+        let resu = await db.query(`SELECT * FROM chats WHERE dm_relation='${req.params.dm_relation}' AND status!=0`);
 
         resu.unreadCtr = 0
         for(let i = 0; i < resu.length; i++){
@@ -996,7 +1004,7 @@ router.get('/dm/chats', cekJWT, async(req,res)=>{
 // read chat
 router.patch('/dm/chat/read', cekJWT, async(req,res)=> {
     if(req.body.target_user_id){
-        let resu = await db.query(`UPDATE chats SET status=1 WHERE user_sender_id='${req.user.id}' AND user_receiver_id='${req.body.target_user_id}'`);
+        let resu = await db.query(`UPDATE chats SET status=1 WHERE user_sender_id='${req.body.target_user_id}' AND user_receiver_id='${req.user.id}'`);
 
         return res.status(200).json({
             'message': 'Chat read!',
@@ -1013,12 +1021,17 @@ router.patch('/dm/chat/read', cekJWT, async(req,res)=> {
     }
 })
 
-
-// chat 
+// send chat 
 router.post('/dm/chats', cekJWT, async (req,res)=> {
     if(req.body.dm_relation && req.body.target_user_id && req.body.message) {
         let resu = await db.query(`INSERT INTO chats VALUES(null, '${req.body.dm_relation}', '${req.user.id}', '${req.body.target_user_id}', '${req.body.message}', 2, CURRENT_TIMESTAMP, null)`);
         await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_user_id}', '${req.user.username} send you a message', 0, 4, CURRENT_TIMESTAMP, null)`);
+
+        pusher.trigger(`${req.body.dm_relation}`, "sendMessage", {
+            user_sender_id: req.user.id,
+            target: req.body.target_user_id,
+            message: req.body.message
+        });
 
         return res.status(201).json({
             'message': 'Send Chats success!',
@@ -1039,7 +1052,6 @@ router.post('/dm/chats', cekJWT, async (req,res)=> {
         });
     }
 })
-
 
 // unsend chat from a DM
 router.delete('/dm/chats/delete', cekJWT, async(req, res) => {

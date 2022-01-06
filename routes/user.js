@@ -103,26 +103,26 @@ router.post('/register', async (req,res)=> {
         // cek age angka saja
         let num = /^\d+$/.test(req.body.age);
         if(!num) {
-            return res.status(400).json({
-                'error msg': 'Umur harus angka semua!'
+            return res.status(200).json({
+                'error_msg': 'Umur harus angka semua!'
             });
         }
 
         // // no telp length = 12
         // if(req.body.telephone_number.length > 12){
-        //     return res.status(400).json({
-        //         'error msg': 'No telepon kelebihan!'
+        //     return res.status(200).json({
+        //         'error_msg': 'No telepon kelebihan!'
         //     });
         // }else if(req.body.telephone_number.length < 12){
-        //     return res.status(400).json({
-        //         'error msg': 'No telepon kekurangan!'
+        //     return res.status(200).json({
+        //         'error_msg': 'No telepon kekurangan!'
         //     });
         // }
 
         // cek cpass dan pass
         if(req.body.password != req.body.confirm_password){
-            return res.status(400).json({
-                'error msg': 'Password dan Confirm password harus sama!'
+            return res.status(200).json({
+                'error_msg': 'Password dan Confirm password harus sama!'
             });
         }
 
@@ -173,7 +173,7 @@ router.post('/register', async (req,res)=> {
             'status': 'Success'
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -189,16 +189,16 @@ router.post('/login', async (req,res)=> {
         if(resu.length == 0) {
             resu = await db.query(`SELECT * FROM users WHERE username='${req.body.emailUsername}'`);
             if(resu.length == 0) {
-                return res.status(404).json({
-                    'error msg': `Username/Email tidak ditemukan!`
+                return res.status(200).json({
+                    'error_msg': `Username/Email tidak ditemukan!`
                 });
             }
         }
 
         resu = await db.query(`SELECT * FROM users WHERE (email='${req.body.emailUsername}' OR username='${req.body.emailUsername}') AND password='${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}'`);
         if(resu.length == 0) {
-            return res.status(400).json({
-                'error msg': 'Password salah!'
+            return res.status(200).json({
+                'error_msg': 'Password salah!'
             });
         }
 
@@ -222,7 +222,7 @@ router.post('/login', async (req,res)=> {
             'Status': 'Success',
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -245,8 +245,8 @@ router.get('/profile/password/requestReset', async(req,res)=>{
     if(req.body.email){
         let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
         if(resu.length == 0) {
-            return res.status(404).json({
-                'error msg': `Email tidak ditemukan!`
+            return res.status(200).json({
+                'error_msg': `Email tidak ditemukan!`
             });
         }
 
@@ -287,7 +287,7 @@ router.get('/profile/password/requestReset', async(req,res)=>{
             'Status': 'Success',
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -301,7 +301,7 @@ router.patch('/profile/password/reset', verifyCode, async(req,res)=>{
     if(req.body.email && req.body.new_password && req.body.confirm_password){
         // cek cpass dan pass
         if(req.body.new_password != req.body.confirm_password){
-            return res.status(400).json({
+            return res.status(200).json({
                 'message': 'New password dan confirm password harus sama!',
                 'data':{
                 },
@@ -320,7 +320,7 @@ router.patch('/profile/password/reset', verifyCode, async(req,res)=>{
             'status' : 'Success'
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -352,7 +352,7 @@ router.patch('/profile/update', cekJWT, async(req,res)=>{
             'status' : 'Success'
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -367,22 +367,22 @@ router.patch('/profile/password/udpate', cekJWT, async(req,res)=>{
         // cek old password
         let resu = await db.query(`SELECT * FROM users WHERE password='${CryptoJS.SHA3(req.body.old_password, { outputLength: 256 })}'`);
         if(resu.length == 0) {
-            return res.status(404).json({
-                'error msg': `Old password salah!`
+            return res.status(200).json({
+                'error_msg': `Old password salah!`
             });
         }
 
         // cek old pass dan new pass
         if(req.body.new_password != req.body.old_password){
-            return res.status(400).json({
-                'error msg': 'New Password dan Old password harus beda!'
+            return res.status(200).json({
+                'error_msg': 'New Password dan Old password harus beda!'
             });
         }
 
         // cek cpass dan new pass
         if(req.body.new_password != req.body.confirm_password){
-            return res.status(400).json({
-                'error msg': 'New Password dan Confirm password harus sama!'
+            return res.status(200).json({
+                'error_msg': 'New Password dan Confirm password harus sama!'
             });
         }
 
@@ -397,7 +397,7 @@ router.patch('/profile/password/udpate', cekJWT, async(req,res)=>{
             'status' : 'Success'
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -452,7 +452,7 @@ router.get('/searchUser', cekJWT, async(req,res)=>{
             'status' : 'Success'
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -495,7 +495,7 @@ router.post('/follow', cekJWT, async (req,res)=> {
             });
         }
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -521,7 +521,7 @@ router.patch('/unfollow', cekJWT, async (req,res)=> {
             'Status': 'Success',
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -545,7 +545,7 @@ router.post('/block', cekJWT, async (req,res)=> {
             'Status': 'Success',
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -569,7 +569,7 @@ router.post('/unblock', cekJWT, async (req,res)=> {
             'Status': 'Success',
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -628,7 +628,7 @@ router.get('/post/following', cekJWT, async(req,res)=>{
             'status' : 'Success'
         });  
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -662,7 +662,7 @@ router.post('/post/upload', cekJWT, async (req,res)=> {
         });
 
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -684,7 +684,7 @@ router.delete('/post/delete', cekJWT, async(req, res) => {
                 'status': 'Error'
             });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -726,7 +726,7 @@ router.post('/post/like', cekJWT, async (req,res)=> {
         });
 
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -756,7 +756,7 @@ router.post('/post/unlike', cekJWT, async (req,res)=> {
             'Status': 'Success',
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -775,7 +775,7 @@ router.get('/post/search', cekJWT, async(req,res)=>{
             'status' : 'Success'
         }); 
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Tidak ada post!',
             'data':{
             },
@@ -795,7 +795,7 @@ router.get('/post/comments', cekJWT, async(req,res) => {
             'status' : 'Success'
         }); 
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -828,7 +828,7 @@ router.post('/post/comment', cekJWT, async (req,res)=> {
 
         console.log('error')
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -850,7 +850,7 @@ router.delete('/post/comment/delete', cekJWT, async(req, res) => {
             'status': 'Success'
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -899,7 +899,7 @@ router.get('/dm', cekJWT, async(req,res)=>{
         });
         
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Belum ada DM!',
             'data':{
             },
@@ -954,7 +954,7 @@ router.post('/dm', cekJWT, async (req,res)=> {
             }
         }
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -976,7 +976,7 @@ router.delete('/dm', cekJWT, async(req, res) => {
             'status': 'Success'
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -1024,7 +1024,7 @@ router.get('/dm/chats/:dm_relation', cekJWT, async(req,res)=>{
             'status': 'Success'
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -1044,7 +1044,7 @@ router.patch('/dm/chat/read', cekJWT, async(req,res)=> {
             'status': 'Success'
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -1076,7 +1076,7 @@ router.post('/dm/chats', cekJWT, async (req,res)=> {
             'status': 'Success'
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },
@@ -1098,7 +1098,7 @@ router.delete('/dm/chats/delete', cekJWT, async(req, res) => {
             'status': 'Success'
         });
     }else{
-        return res.status(400).json({
+        return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
             'data':{
             },

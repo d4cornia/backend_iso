@@ -184,7 +184,7 @@ router.post('/login', async (req,res)=> {
                 'name': resu[0].name,
                 'token' : token
             },
-            'Status': 'Success',
+            'status': 'Success',
         });
     }else{
         return res.status(200).json({

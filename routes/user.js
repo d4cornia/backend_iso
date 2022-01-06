@@ -320,11 +320,20 @@ router.patch('/profile/password/reset', async(req,res)=>{
 router.get('/profile', cekJWT, async(req,res)=>{
     // get all our posts
     let resu = await db.query(`SELECT * FROM posts WHERE user_id='${req.user.id}' AND status!=0`);
+    
+    // ctr following
+    let temp1 = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND status=1`);
+
+    // ctr followers
+    let temp2 = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${req.user.id}' AND status=1`);
+
     return res.status(200).json({
         'message': 'User profile!',
         'data': {
             'profile': req.user,
-            'posts': resu
+            'posts': resu,
+            'following': temp1.length,
+            'followers': temp2.length
         },
         'status' : 'Success'
     });

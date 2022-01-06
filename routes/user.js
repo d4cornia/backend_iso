@@ -341,7 +341,8 @@ router.get('/profile/:username', cekJWT, async(req,res)=>{
         'message': 'User profile!',
         'data': {
             'profile': user[0],
-            'posts': resu
+            'posts': resu, 
+            'postsCtr': resu.length
         },
         'status' : 'Success'
     });

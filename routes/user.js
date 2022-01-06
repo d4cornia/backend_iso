@@ -126,37 +126,39 @@ router.post('/register', async (req,res)=> {
             });
         }
 
-        // cek tidak ada email kembar
-        let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
+
+        // cek tidak ada username kembar
+        let resu = await db.query(`SELECT * FROM users WHERE username='${req.body.username}'`);
         if(resu.length > 0){
-            return res.status(400).json({
-                'error msg': 'Email telah digunakan!'
+            return res.status(200).json({
+                'error_msg': 'Username is already taken',
+                'inputName': 'username'
             });
         }
 
-
-        // cek tidak ada username kembar
-        resu = await db.query(`SELECT * FROM users WHERE username='${req.body.username}'`);
+        // cek tidak ada email kembar
+        resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
         if(resu.length > 0){
-            return res.status(400).json({
-                'error msg': 'Username telah digunakan!'
+            return res.status(200).json({
+                'error_msg': 'Email Address is already taken',
+                'inputName': 'email'
             });
         }
         
 
         // gen unique code
-        let imageId = '-';
-        do{
-            flag = false;
-            imageId = genID(255, 1);
-            resu = await db.query(`SELECT * FROM users WHERE image_id='${imageId}'`);
-            if(resu.length > 0){
-                flag = true;
-            }
-        } while(flag)
+        // let imageId = '-';
+        // do{
+        //     flag = false;
+        //     imageId = genID(255, 1);
+        //     resu = await db.query(`SELECT * FROM users WHERE image_id='${imageId}'`);
+        //     if(resu.length > 0){
+        //         flag = true;
+        //     }
+        // } while(flag)
 
         // insert
-        await db.query(`INSERT INTO users VALUES(null, '${req.body.username}', '${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}', '${req.body.email}', null, '${req.body.name}', ${req.body.age}, '${req.body.description}', '${imageId}', 1, CURRENT_TIMESTAMP, null)`);
+        await db.query(`INSERT INTO users VALUES(null, '${req.body.username}', '${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}', '${req.body.email}', null, '${req.body.name}', ${req.body.age}, '${req.body.description}', '-', 1, CURRENT_TIMESTAMP, null)`);
 
         return res.status(201).json({
             'message': 'Register Berhasil!',
@@ -166,7 +168,7 @@ router.post('/register', async (req,res)=> {
                 'name': req.body.name,
                 'age': req.body.age,
                 'description': req.body.description,
-                'image_id': imageId,
+                'image_id': '-',
             },
             'status': 'Success'
         });

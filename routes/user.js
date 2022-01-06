@@ -120,68 +120,11 @@ router.post('/register', async (req,res)=> {
     if(req.body.username && req.body.name && req.body.email
         && req.body.description && req.body.password && req.body.confirm_password
     ){
-        // cek age angka saja
-        let num = /^\d+$/.test(req.body.age);
-        if(!num) {
-            return res.status(200).json({
-                'error_msg': 'Umur harus angka semua!'
-            });
-        }
-
-        // // no telp length = 12
-        // if(req.body.telephone_number.length > 12){
-        //     return res.status(200).json({
-        //         'error_msg': 'No telepon kelebihan!'
-        //     });
-        // }else if(req.body.telephone_number.length < 12){
-        //     return res.status(200).json({
-        //         'error_msg': 'No telepon kekurangan!'
-        //     });
-        // }
-
-        // cek cpass dan pass
-        if(req.body.password != req.body.confirm_password){
-            return res.status(200).json({
-                'error_msg': 'Password dan Confirm password harus sama!'
-            });
-        }
-
-
-        // cek tidak ada username kembar
-        let resu = await db.query(`SELECT * FROM users WHERE username='${req.body.username}'`);
-        if(resu.length > 0){
-            return res.status(200).json({
-                'error_msg': 'Username is already taken',
-                'inputName': 'username'
-            });
-        }
-
-        // cek tidak ada email kembar
-        resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
-        if(resu.length > 0){
-            return res.status(200).json({
-                'error_msg': 'Email Address is already taken',
-                'inputName': 'email'
-            });
-        }
-        
-
-        // gen unique code
-        // let imageId = '-';
-        // do{
-        //     flag = false;
-        //     imageId = genID(255, 1);
-        //     resu = await db.query(`SELECT * FROM users WHERE image_id='${imageId}'`);
-        //     if(resu.length > 0){
-        //         flag = true;
-        //     }
-        // } while(flag)
-
         // insert
         await db.query(`INSERT INTO users VALUES(null, '${req.body.username}', '${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}', '${req.body.email}', null, '${req.body.name}', ${req.body.age}, '${req.body.description}', '-', 1, CURRENT_TIMESTAMP, null)`);
 
         return res.status(201).json({
-            'message': 'Register Berhasil!',
+            'message': 'Account created, Welcome to Polarogram!',
             'data':{
                 'username': req.body.username,
                 'email': req.body.email,
@@ -210,7 +153,8 @@ router.post('/login', async (req,res)=> {
             resu = await db.query(`SELECT * FROM users WHERE username='${req.body.emailUsername}'`);
             if(resu.length == 0) {
                 return res.status(200).json({
-                    'error_msg': `Username/Email tidak ditemukan!`
+                    'error_msg': `Username or Email Address doesn't exists`,
+                    'target': 'username'
                 });
             }
         }
@@ -218,7 +162,8 @@ router.post('/login', async (req,res)=> {
         resu = await db.query(`SELECT * FROM users WHERE (email='${req.body.emailUsername}' OR username='${req.body.emailUsername}') AND password='${CryptoJS.SHA3(req.body.password, { outputLength: 256 })}'`);
         if(resu.length == 0) {
             return res.status(200).json({
-                'error_msg': 'Password salah!'
+                'error_msg': 'Wrong Password',
+                'target': 'password'
             });
         }
 

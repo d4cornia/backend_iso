@@ -1013,16 +1013,19 @@ router.get('/dm/chats/:dm_relation', cekJWT, async(req,res)=>{
     if(req.params.dm_relation){
         let resu = await db.query(`SELECT * FROM chats WHERE dm_relation='${req.params.dm_relation}' AND status!=0`);
 
-        resu.unreadCtr = 0
+        let unreadCtr = 0
         for(let i = 0; i < resu.length; i++){
-            if(parseInt(resu[0].status) == 2) {
-                resu.unreadCtr++
+            if(parseInt(resu[i].status) == 2) {
+                unreadCtr++
             }
         }
 
         return res.status(200).json({
             'message': 'All Chats Result!',
-            'data': resu,
+            'data': {
+                'chats': resu,
+                'unreadCtr': unreadCtr 
+            },
             'status': 'Success'
         });
     }else{

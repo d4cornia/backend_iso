@@ -241,7 +241,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // request user reset password
-router.get('/profile/password/requestReset', async(req,res)=>{
+router.post('/profile/password/requestReset', async(req,res)=>{
     if(req.body.email){
         let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
         if(resu.length == 0) {
@@ -429,7 +429,7 @@ router.patch('/profile/password/udpate', cekJWT, async(req,res)=>{
 });
 
 // search user
-router.get('/searchUser', cekJWT, async(req,res)=>{
+router.post('/searchUser', cekJWT, async(req,res)=>{
     if(req.body.target_user){
         let final = []
         let resu = await db.query(`SELECT * FROM users WHERE username LIKE %'${req.body.target_user}'% OR name LIKE %'${req.body.target_user}'% AND id!='${req.user.id}' AND status!=0`);
@@ -624,7 +624,7 @@ router.get('/following', cekJWT, async(req,res)=>{
 
 
 // show all post from following users
-router.get('/post/following', cekJWT, async(req,res)=>{
+router.post('/post/following', cekJWT, async(req,res)=>{
     if(req.body.size){
         // get all user yang kita follow
         let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND status=1`);
@@ -788,7 +788,7 @@ router.post('/post/unlike', cekJWT, async (req,res)=> {
 });
 
 // search post dari hash tag, R
-router.get('/post/search', cekJWT, async(req,res)=>{
+router.post('/post/search', cekJWT, async(req,res)=>{
     if(req.body.keyword){
         let resu = await db.query(`SELECT * FROM posts WHERE tag LIKE '%${req.body.keyword}%' AND status!=0`);
         return res.status(200).json({
@@ -807,7 +807,7 @@ router.get('/post/search', cekJWT, async(req,res)=>{
 })
 
 // get all comment suatu post data
-router.get('/post/comments', cekJWT, async(req,res) => {
+router.post('/post/comments', cekJWT, async(req,res) => {
     if(req.body.target_post_id){
         let resu = await db.query(`SELECT * FROM user_comments WHERE post_id='${req.body.target_post_id}' AND status=1`);
 

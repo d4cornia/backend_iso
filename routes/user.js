@@ -321,7 +321,6 @@ router.patch('/profile/password/reset', async(req,res)=>{
 router.get('/profile', cekJWT, async(req,res)=>{
     // get all our posts
     let resu = await db.query(`SELECT * FROM posts WHERE user_id='${req.user.id}' AND status!=0`);
-    req.user.postsCtr = resu.length
     
     // ctr following
     let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND status=1`);

@@ -335,7 +335,7 @@ router.get('/profile/:username', cekJWT, async(req,res)=>{
 
     // ctr followers
     temp = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${user[0].id}' AND status=1`);
-    user[0].user.followersCtr = temp.length
+    user[0].followersCtr = temp.length
 
     return res.status(200).json({
         'message': 'User profile!',

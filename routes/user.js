@@ -242,6 +242,7 @@ const transporter = nodemailer.createTransport({
 
 // request user reset password
 router.post('/profile/password/requestReset', async(req,res)=>{
+    console.log(process.env.email)
     if(req.body.email){
         let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
         if(resu.length == 0) {

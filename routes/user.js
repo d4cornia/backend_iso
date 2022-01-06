@@ -296,8 +296,30 @@ router.get('/profile/password/requestReset', async(req,res)=>{
     }
 });
 
+router.post('/profile/password/verify', async(req, res) => {
+    let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
+    if(resu[0].verification_code == '-'){
+        return res.status(200).json({
+            'error_msg': 'Request Verification code dulu!'
+        });
+    }
+
+    if(req.body.verification_code != resu[0].verification_code){
+        return res.status(200).json({
+            'error_msg': 'Verification code yang dimasukan salah! Request Verification code dulu!'
+        });
+    }
+    
+    return res.status(200).json({
+        'message': 'Verification success',
+        'data':{
+        },
+        'status': 'Success'
+    });
+})
+
 // reset user password
-router.patch('/profile/password/reset', verifyCode, async(req,res)=>{
+router.patch('/profile/password/reset', async(req,res)=>{
     if(req.body.email && req.body.new_password && req.body.confirm_password){
         // cek cpass dan pass
         if(req.body.new_password != req.body.confirm_password){

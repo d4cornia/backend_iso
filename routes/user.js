@@ -352,10 +352,33 @@ router.get('/profile/:username', cekJWT, async(req,res)=>{
 router.patch('/profile/update', cekJWT, async(req,res)=>{
     if(req.body.name && req.body.description && req.body.age && req.body.image_id){
         // update
-        await db.query(`UPDATE users SET name='${req.body.name}', age=${req.body.age}, description='${req.body.description}',  image_id='${req.body.image_id} 'WHERE id='${req.user.id}'`);
+        await db.query(`UPDATE users SET name='${req.body.name}', age=${req.body.age}, description='${req.body.description}' WHERE id='${req.user.id}'`);
 
         return res.status(200).json({
             'message': 'Success update profile!',
+            'data':{
+                'email': req.user.email,
+            },
+            'status' : 'Success'
+        });
+    }else{
+        return res.status(200).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
+
+// updateimage profile
+router.patch('/profile/image/update', cekJWT, async(req,res)=>{
+    if(req.body.new_image_id){
+        // update
+        await db.query(`UPDATE users SET image_id='${req.body.new_image_id}' WHERE id='${req.user.id}'`);
+
+        return res.status(200).json({
+            'message': 'Success update profile image !',
             'data':{
                 'email': req.user.email,
             },

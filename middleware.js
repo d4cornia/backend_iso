@@ -3,7 +3,6 @@ const jwt = require('jsonwebtoken');
 const CryptoJS = require("crypto-js");
 
 async function cekJWT(req, res, next){
-    console.log(req.headers['x-auth-token'])
     if(!req.headers['x-auth-token']){
         return res.status(401).json({
             'error msg': 'Unauthorized!'

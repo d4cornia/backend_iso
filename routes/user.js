@@ -350,9 +350,9 @@ router.get('/profile/:username', cekJWT, async(req,res)=>{
 
 //updating user profile
 router.patch('/profile/update', cekJWT, async(req,res)=>{
-    if(req.body.name && req.body.description && req.body.age && req.body.image_id){
+    if(req.body.name && req.body.description && req.body.age ){
         // update
-        await db.query(`UPDATE users SET name='${req.body.name}', age=${req.body.age}, description='${req.body.description}',  image_id='${req.body.image_id} 'WHERE id='${req.user.id}'`);
+        await db.query(`UPDATE users SET name='${req.body.name}', age=${req.body.age}, description='${req.body.description}' WHERE id='${req.user.id}'`);
 
         return res.status(200).json({
             'message': 'Success update profile!',
@@ -371,8 +371,34 @@ router.patch('/profile/update', cekJWT, async(req,res)=>{
     }
 });
 
+// updateimage profile
+router.patch('/profile/image/update', cekJWT, async(req,res)=>{
+    console.log(req.body.new_image_id, req.user.id)
+    
+    if(req.body.new_image_id){
+        // update
+        await db.query(`UPDATE users SET image_id='${req.body.new_image_id}' WHERE id='${req.user.id}'`);
+
+        return res.status(200).json({
+            'message': 'Success update profile image !',
+            'data':{
+                'email': req.user.email,
+            },
+            'status' : 'Success'
+        });
+    }else{
+        return res.status(200).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
+
 // updating user password
-router.patch('/profile/password/udpate', cekJWT, async(req,res)=>{
+router.patch('/profile/password/update', cekJWT, async(req,res)=>{
+    console.log(req.body.old_password,req.body.new_password,req.body.confirm_password)
     if(req.body.old_password && req.body.new_password && req.body.confirm_password){
         // cek old password
         let resu = await db.query(`SELECT * FROM users WHERE password='${CryptoJS.SHA3(req.body.old_password, { outputLength: 256 })}'`);
@@ -383,7 +409,7 @@ router.patch('/profile/password/udpate', cekJWT, async(req,res)=>{
         }
 
         // cek old pass dan new pass
-        if(req.body.new_password != req.body.old_password){
+        if(req.body.new_password == req.body.old_password){
             return res.status(200).json({
                 'error_msg': 'New Password dan Old password harus beda!'
             });
@@ -629,7 +655,29 @@ router.post('/post/following', cekJWT, async(req,res)=>{
                     }
                     final.push(posts[i])
                 }
+
             }
+        }
+        let temp = await db.query(`SELECT count(id) FROM user_likes GROUP BY post_id ORDER BY count(id) DESC`);
+        let flag = true;
+        let temp2 = [];
+        for (let i = 0; i < req.body.size-final.length; i++) {
+            flag=true;
+            for (let j = 0; j < final.length; j++) {
+                if(final[j].post_id == temp[i].post_id){
+                    flag=false;
+                    break;
+                }
+                
+            }
+            if(flag)
+            {
+                let post = await db.query(`SELECT * FROM posts WHERE id='${temp[i].post_id}'`);
+                temp2.push(post[0]);
+            }
+        }
+        for (let i = 0; i < temp2.length; i++) {
+            final.push(temp2[i]);            
         }
         
         return res.status(200).json({

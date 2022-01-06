@@ -91,6 +91,26 @@ const genID = (length, mode) => {
     return key;
 };
 
+// Check Username
+router.get('/check/username/:username', async(req, res) => {
+    let resu = await db.query(`SELECT * FROM users WHERE username='${req.params.username}'`);
+    if(resu.length > 0){
+        return res.status(200).json({
+            'error_msg': 'Username is already taken'
+        });
+    }
+})
+
+// Check Email
+router.get('/check/email/:email', async(req, res) => {
+    let resu = await db.query(`SELECT * FROM users WHERE email='${req.params.email}'`);
+    if(resu.length > 0){
+        return res.status(200).json({
+            'error_msg': 'Email Address is already taken'
+        });
+    }
+})
+
 
 // user register
 router.post('/register', async (req,res)=> {

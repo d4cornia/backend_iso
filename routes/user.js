@@ -207,7 +207,6 @@ const transporter = nodemailer.createTransport({
 
 // request user reset password
 router.post('/profile/password/requestReset', async(req,res)=>{
-    console.log(process.env.email)
     if(req.body.email){
         let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
         if(resu.length == 0) {
@@ -321,12 +320,11 @@ router.patch('/profile/password/reset', async(req,res)=>{
 router.get('/profile', cekJWT, async(req,res)=>{
     // get all our posts
     let resu = await db.query(`SELECT * FROM posts WHERE user_id='${req.user.id}' AND status!=0`);
-
     return res.status(200).json({
         'message': 'User profile!',
         'data': {
             'profile': req.user,
-            'posts': resu.data.data
+            'posts': resu
         },
         'status' : 'Success'
     });

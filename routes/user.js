@@ -552,6 +552,30 @@ router.post('/block', cekJWT, async (req,res)=> {
     }
 });
 
+// unblock
+router.post('/unblock', cekJWT, async (req,res)=> {
+    if(req.body.target_user_id){
+        // update user relationship
+        await db.query(`UPDATE user_relationships SET status=1 WHERE user_id='${req.user.id}' AND followed_user_id='${req.body.target_user_id}'`);
+
+        return res.status(200).json({
+            'message': 'Unblock Berhasil!',
+            'data':{
+                'user_id': req.user.id, 
+                'followed_user_id': req.body.target_user_id
+            },
+            'Status': 'Success',
+        });
+    }else{
+        return res.status(400).json({
+            'message': 'Inputan Belum lengkap!',
+            'data':{
+            },
+            'status': 'Error'
+        });
+    }
+});
+
 // show followers user, yang diliat user_id (yang follow kita)
 router.get('/followers', cekJWT, async(req,res)=>{
     let resu = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${req.user.id}' AND status=1`);
@@ -578,15 +602,21 @@ router.get('/following', cekJWT, async(req,res)=>{
 // show all post from following users
 router.get('/post/following', cekJWT, async(req,res)=>{
     if(req.body.size){
+        // get all user yang kita follow
         let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND status=1`);
         let final = [];
-        for (let i = 0; i < resu.length; i++){
-            let posts = await db.query(`SELECT * FROM posts WHERE user_id='${resu[i].followed_user_id}' AND status=1 ORDER BY DESC`);
-            for (let j = 0; j < req.body.size; j++) {
-                if(j == posts.length) {
-                    break
+        for (let i = 0; i < resu.length; i++) {
+            // cek realsi dia ke kita apa
+            let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${resu[i].followed_user_id}' AND followed_user_id='${req.user.id}' ORDER BY ID DESC`);
+            if(parseInt(temp[0].status) === 1) {
+                // hanya jika mereka tidak block kita baru kita bisa liat post mereka
+                let posts = await db.query(`SELECT * FROM posts WHERE user_id='${resu[i].followed_user_id}' AND status=1 ORDER BY DESC`);
+                for (let j = 0; j < req.body.size; j++) {
+                    if(j == posts.length) {
+                        break
+                    }
+                    final.push(posts[i])
                 }
-                final.push(posts[i])
             }
         }
         

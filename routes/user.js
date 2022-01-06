@@ -353,9 +353,15 @@ router.patch('/profile/password/reset', async(req,res)=>{
 
 // get user profile
 router.get('/profile', cekJWT, async(req,res)=>{
+    // get all our posts
+    let resu = await db.query(`SELECT * FROM posts WHERE user_id='${req.user.id}' AND status!=0`);
+
     return res.status(200).json({
         'message': 'User profile!',
-        'data': req.user,
+        'data': {
+            'profile': req.user,
+            'posts': resu.data.data
+        },
         'status' : 'Success'
     });
 });
@@ -634,7 +640,7 @@ router.post('/post/following', cekJWT, async(req,res)=>{
             let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${resu[i].followed_user_id}' AND followed_user_id='${req.user.id}' ORDER BY ID DESC`);
             if(parseInt(temp[0].status) === 1) {
                 // hanya jika mereka tidak block kita baru kita bisa liat post mereka
-                let posts = await db.query(`SELECT * FROM posts WHERE user_id='${resu[i].followed_user_id}' AND status=1 ORDER BY DESC`);
+                let posts = await db.query(`SELECT * FROM posts WHERE user_id='${resu[i].followed_user_id}' AND status!=0 ORDER BY DESC`);
                 for (let j = 0; j < req.body.size; j++) {
                     if(j == posts.length) {
                         break

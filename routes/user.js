@@ -318,22 +318,29 @@ router.patch('/profile/password/reset', async(req,res)=>{
 });
 
 // get user profile
-router.get('/profile', cekJWT, async(req,res)=>{
+router.get('/profile/:username', cekJWT, async(req,res)=>{
+    let user = await db.query(`SELECT * FROM users WHERE username='${req.params.username}' AND status!=0`);
+    if(user.length == 0){
+        return res.status(404).json({
+            'error_msg': 'User not found!'
+        });
+    }
+
     // get all our posts
-    let resu = await db.query(`SELECT * FROM posts WHERE user_id='${req.user.id}' AND status!=0`);
+    let resu = await db.query(`SELECT * FROM posts WHERE user_id='${user[0].id}' AND status!=0`);
     
     // ctr following
-    let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND status=1`);
+    let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${user[0].id}' AND status=1`);
     req.user.followingCtr = temp.length
 
     // ctr followers
-    temp = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${req.user.id}' AND status=1`);
+    temp = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${user[0].id}' AND status=1`);
     req.user.followersCtr = temp.length
 
     return res.status(200).json({
         'message': 'User profile!',
         'data': {
-            'profile': req.user,
+            'profile': user[0],
             'posts': resu
         },
         'status' : 'Success'

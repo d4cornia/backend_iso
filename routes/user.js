@@ -506,10 +506,10 @@ router.post('/follow', cekJWT, async (req,res)=> {
         if(resu.length == 0) {
             // INSERT 
             // let newNotifId = null
-            await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_user_id}', '${req.user.username} started following you', 0, 1, CURRENT_TIMESTAMP, null)`, async function (err, result) {
+            await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_user_id}', 'started following you', 0, 1, CURRENT_TIMESTAMP, null)`, async function (err, result) {
                 if (err) throw err;
-
-                await db.query(`INSERT INTO user_relationships VALUES(null, '${req.user.id}', '${req.body.target_user_id}', 1, ${result.resultId} , CURRENT_TIMESTAMP, null)`);
+                // console.log(result)
+                await db.query(`INSERT INTO user_relationships VALUES(null, '${req.user.id}', '${req.body.target_user_id}', 1, ${result.insertId} , CURRENT_TIMESTAMP, null)`);
 
                 return res.status(200).json({
                     'message': 'Follow Berhasil!',
@@ -760,7 +760,7 @@ router.post('/post/like', cekJWT, async (req,res)=> {
         if(resu.length == 0){
             let post = await db.query(`SELECT * FROM posts WHERE id='${req.body.target_post_id}'`);
             // insert new notif like 
-            await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${post[0].user_id}', '${req.user.username} has liked your post', 0, 2, CURRENT_TIMESTAMP, null)`, function (err, result) {
+            await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${post[0].user_id}', 'has liked your post', 0, 2, CURRENT_TIMESTAMP, null)`, function (err, result) {
                 if (err) throw err;
             });
 
@@ -824,7 +824,7 @@ router.post('/post/unlike', cekJWT, async (req,res)=> {
 });
 
 // search post dari hash tag, R
-router.post('/post/search', cekJWT, async(req,res)=>{
+router.get('/post/search', cekJWT, async(req,res)=>{
     if(req.body.keyword){
         let resu = await db.query(`SELECT * FROM posts WHERE tag LIKE '%${req.body.keyword}%' AND status!=0`);
         return res.status(200).json({
@@ -868,7 +868,7 @@ router.post('/post/comment', cekJWT, async (req,res)=> {
     if(req.body.target_post_id && req.body.commentTexts){
         let resu = await db.query(`SELECT * FROM post WHERE id='${req.body.target_post_id}'`);
         // insert new notif
-        await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${resu[0].user_id}', '${req.user.username} commented on your post', 0, 3, CURRENT_TIMESTAMP, null)`, async function (err, result) {
+        await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${resu[0].user_id}', 'commented on your post', 0, 3, CURRENT_TIMESTAMP, null)`, async function (err, result) {
             if (err) throw err;
 
             // insert new comment
@@ -920,8 +920,13 @@ router.delete('/post/comment/delete', cekJWT, async(req, res) => {
 
 // get all notificaitons, R
 router.get('/notifications', cekJWT, async(req,res)=>{
-    let resu = await db.query(`SELECT * FROM notifications WHERE receiever_id='${req.user.id}' AND status!=0`);
+    let resu = await db.query(`SELECT * FROM notifications WHERE receiver_id='${req.user.id}' AND status!=0 `);
 
+    for(let i = 0; i < resu.length; i++){
+        detailUser = await db.query(`SELECT * FROM users WHERE id='${resu[i].sender_id}' `);
+        resu[i].detailUser = detailUser
+    }
+    
     return res.status(200).json({
         'message': 'All Notification Result!',
         'data':resu,
@@ -1118,7 +1123,7 @@ router.patch('/dm/chat/read', cekJWT, async(req,res)=> {
 router.post('/dm/chats', cekJWT, async (req,res)=> {
     if(req.body.dm_relation && req.body.target_user_id && req.body.message) {
         let resu = await db.query(`INSERT INTO chats VALUES(null, '${req.body.dm_relation}', '${req.user.id}', '${req.body.target_user_id}', '${req.body.message}', 2, CURRENT_TIMESTAMP, null)`);
-        await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_user_id}', '${req.user.username} send you a message', 0, 4, CURRENT_TIMESTAMP, null)`);
+        await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_user_id}', 'send you a message', 0, 4, CURRENT_TIMESTAMP, null)`);
 
         pusher.trigger(`${req.body.dm_relation}`, "sendMessage", {
             user_sender_id: req.user.id,

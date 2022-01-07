@@ -8,6 +8,7 @@ const axios = require("axios").default;
 const nodemailer = require('nodemailer');
 const CryptoJS = require("crypto-js");
 const Pusher = require("pusher");
+const moment = require('moment');
 
 const pusher = new Pusher({
     appId: "1325352",
@@ -65,6 +66,40 @@ const {
     cekJWT,
     verifyCode
 } = require("../middleware");
+
+
+const kFormatter = (num) => {
+    return Math.abs(num) > 999 ? Math.sign(num)((Math.abs(num)/1000).toFixed(1)) + 'k' : Math.sign(num) * Math.abs(num)
+}
+
+
+function timeSince(date) {
+    var seconds = Math.floor((new Date() - date) / 1000);
+    var interval = seconds / 31536000;
+    if (interval > 1) {
+        return Math.floor(interval) + " years";
+    }
+    interval = seconds / 2592000;
+    if (interval > 1) {
+        return Math.floor(interval) + " months";
+    }
+    interval = seconds / 86400;
+    if (interval > 1) {
+        return Math.floor(interval) + " days";
+    }
+    interval = seconds / 3600;
+    if (interval > 1) {
+        return Math.floor(interval) + " hours";
+    }
+    interval = seconds / 60;
+    if (interval > 1) {
+        return Math.floor(interval) + " minutes";
+    }
+    return Math.floor(seconds) + " seconds";
+}
+var aDay = 24*60*60*1000;
+console.log(timeSince(new Date(Date.now()-aDay)));
+console.log(timeSince(new Date(Date.now()-aDay*2)));
 
 
 // add in function
@@ -646,26 +681,32 @@ router.post('/post/following', cekJWT, async(req,res)=>{
         for (let i = 0; i < resu.length; i++) {
             // cek realsi dia ke kita apa
             let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${resu[i].followed_user_id}' AND followed_user_id='${req.user.id}' ORDER BY ID DESC`);
-            if(parseInt(temp[0].status) === 1) {
+            if(temp.length == 0 || parseInt(temp[0].status) === 1) {
                 // hanya jika mereka tidak block kita baru kita bisa liat post mereka
-                let posts = await db.query(`SELECT * FROM posts WHERE user_id='${resu[i].followed_user_id}' AND status!=0 ORDER BY DESC`);
+                let posts = await db.query(`SELECT * FROM posts WHERE user_id='${resu[i].followed_user_id}' AND status!=0 ORDER BY id DESC`);
                 for (let j = 0; j < req.body.size; j++) {
                     if(j == posts.length) {
                         break
                     }
                     final.push(posts[i])
                 }
-
             }
         }
-        let temp = await db.query(`SELECT count(id) FROM user_likes GROUP BY post_id ORDER BY count(id) DESC`);
+        // console.log(final)
+
+        // post dengan like terbanyak
+        let temp = await db.query(`SELECT post_id, count(id) as 'ctr' FROM user_likes GROUP BY post_id ORDER BY count(id) DESC`);
+        // console.log(temp)
         let flag = true;
         let temp2 = [];
-        for (let i = 0; i < req.body.size-final.length; i++) {
-            flag=true;
+        for (let i = 0; i < req.body.size - final.length; i++) {
+            if(i == temp.length){
+                break
+            }
+            flag = true;
             for (let j = 0; j < final.length; j++) {
                 if(final[j].post_id == temp[i].post_id){
-                    flag=false;
+                    flag = false;
                     break;
                 }
                 
@@ -679,7 +720,54 @@ router.post('/post/following', cekJWT, async(req,res)=>{
         for (let i = 0; i < temp2.length; i++) {
             final.push(temp2[i]);            
         }
-        
+
+        // aditional info
+        for (let i = 0; i < final.length; i++) {
+            let user = await db.query(`SELECT * FROM users WHERE id='${final[i].user_id}'`);
+
+            // ctr following
+            let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${user[0].id}' AND status=1`);
+            user[0].followingCtr = kFormatter(temp.length)
+
+            // ctr followers
+            temp = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${user[0].id}' AND status=1`);
+            user[0].followersCtr = kFormatter(temp.length)
+
+            // cek apa relasi kita ke dia
+            temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND followed_user_id='${user[0].id}' ORDER BY ID DESC`);
+            user[0].isFollowing = temp.length == 0 ? false : true
+
+            final[i].user = user[0]
+
+            // cek apa relasi kita ke post, like atau belom like
+            temp = await db.query(`SELECT * FROM user_likes WHERE user_id='${req.user.id}' AND post_id='${final[i].id}' ORDER BY ID DESC`);
+            final[i].isLiked = temp.length == 0 ? 0 : temp[0].status
+
+            // cek apa relasi kita ke post, like atau belom like
+            temp = await db.query(`SELECT * FROM user_likes WHERE post_id='${final[i].id}' AND status=1`);
+            final[i].likesCtr = kFormatter(temp.length)
+
+            final[i].dateNow = moment(final[i].created_at, moment.ISO_8601).fromNow()
+
+            // comments
+            temp = await db.query(`SELECT * FROM user_comments WHERE post_id='${final[i].id}' AND status=1`);
+            if (temp.length > 0){
+                for (let j = 0; j < temp.length; j++) {
+                    // add aditional info for comments
+                    user = await db.query(`SELECT * FROM users WHERE id='${temp[j].user_id}'`);
+                    temp[j].user = user[0]
+                    temp[j].dateNow = moment(temp[j].created_at, moment.ISO_8601).fromNow()
+                }
+                final[i].hasComments = true
+            } else {
+                final[i].hasComments = false
+            }
+
+            final[i].comments = temp
+        }
+
+        // console.log(final)
+
         return res.status(200).json({
             'message': 'Following post Result!',
             'data': final,

@@ -688,22 +688,26 @@ router.post('/post/following', cekJWT, async(req,res)=>{
                     if(j == posts.length) {
                         break
                     }
+                   
                     final.push(posts[j])
                 }
             }
         }
-        // console.log(final)
+        console.log(final)
 
         // post dengan like terbanyak
         let temp = await db.query(`SELECT post_id, count(id) as 'ctr' FROM user_likes GROUP BY post_id ORDER BY count(id) DESC`);
         // console.log(temp)
         let flag = true;
         let temp2 = [];
+        
         for (let i = 0; i < req.body.size - final.length; i++) {
-            if(i == temp.length){
+            
+            if(i >= temp.length){
                 break
             }
             flag = true;
+           
             for (let j = 0; j < final.length; j++) {
                 if(final[j].id == temp[i].post_id){
                     flag = false;
@@ -717,6 +721,7 @@ router.post('/post/following', cekJWT, async(req,res)=>{
                 temp2.push(post[0]);
             }
         }
+ 
         for (let i = 0; i < temp2.length; i++) {
             final.push(temp2[i]);            
         }

@@ -688,7 +688,7 @@ router.post('/post/following', cekJWT, async(req,res)=>{
                     if(j == posts.length) {
                         break
                     }
-                    final.push(posts[i])
+                    final.push(posts[j])
                 }
             }
         }
@@ -705,7 +705,7 @@ router.post('/post/following', cekJWT, async(req,res)=>{
             }
             flag = true;
             for (let j = 0; j < final.length; j++) {
-                if(final[j].post_id == temp[i].post_id){
+                if(final[j].id == temp[i].post_id){
                     flag = false;
                     break;
                 }
@@ -841,8 +841,6 @@ router.delete('/post/delete', cekJWT, async(req, res) => {
 
 // like post
 router.post('/post/like', cekJWT, async (req,res)=> {
-    //cek field kosong
-    if(req.body.target_post_id){
         // cek jika sudah ada ditable
         let resu = await db.query(`SELECT * FROM user_likes WHERE user_id='${req.user.id}' AND post_id=${req.body.target_post_id} ORDER BY id DESC`);
         if(resu.length == 0){
@@ -870,15 +868,6 @@ router.post('/post/like', cekJWT, async (req,res)=> {
             },
             'Status': 'Success',
         });
-
-    }else{
-        return res.status(200).json({
-            'message': 'Inputan Belum lengkap!',
-            'data':{
-            },
-            'status': 'Error'
-        });
-    }
 });
 
 // unlike post
@@ -888,7 +877,7 @@ router.post('/post/unlike', cekJWT, async (req,res)=> {
         let resu = await db.query(`SELECT * FROM user_likes WHERE user_id='${req.user.id}' AND post_id=${req.body.target_post_id} ORDER BY id DESC`);
 
         // update old notif like, jadi unlike
-        await db.query(`UPDATE notifications SET status=0, is_read=0 WHERE id='${resu[0].notif_id}'`);
+        // await db.query(`UPDATE notifications SET status=0, is_read=0 WHERE id='${resu[0].notif_id}'`);
 
         // update table user like
         await db.query(`UPDATE user_likes SET status=0 WHERE id='${resu[0].id}'`);

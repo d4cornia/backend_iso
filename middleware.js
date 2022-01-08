@@ -30,7 +30,6 @@ async function cekJWT(req, res, next){
     let resu = await db.query(`SELECT * FROM users WHERE email='${user.email}' AND password='${user.password}'`);
 
     req.user = resu[0]; // jika suskses maka akan mendapatkan user yang diverfikasi jwt
-
     next();
 }
 

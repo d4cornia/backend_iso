@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const CryptoJS = require("crypto-js");
 
 async function cekJWT(req, res, next){
+    // console.log('body                      :', req.path)
     if(!req.headers['x-auth-token']){
         return res.status(401).json({
             'error_msg': 'Unauthorized!'
@@ -30,6 +31,7 @@ async function cekJWT(req, res, next){
     let resu = await db.query(`SELECT * FROM users WHERE email='${user.email}' AND password='${user.password}'`);
 
     req.user = resu[0]; // jika suskses maka akan mendapatkan user yang diverfikasi jwt
+    // console.log(resu[0].username, req.path)
     next();
 }
 

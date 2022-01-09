@@ -1119,9 +1119,11 @@ router.get('/notifications', cekJWT, async(req,res)=>{
 // get all dm, R
 router.get('/dm', cekJWT, async(req,res)=>{
     let resu = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND status=1`);
+    // console.log(req.user)
     let allResu= [];
 
     let cekChat = null;
+    let unreadCtr = 0
     if(resu.length > 0){
         //Cek ada chat
         for(let i = 0; i < resu.length; i++){
@@ -1147,10 +1149,14 @@ router.get('/dm', cekJWT, async(req,res)=>{
                 let tempChat = []
                 let date = '-'
                 let momentDate = '-'
+                let flag = false
                 for (let j = cekChat.length - 1; j >= 0 ; j--) {
+                    if(cekChat[j].status == 2 && req.user.id == cekChat[j].user_receiver_id){
+                        flag = true
+                    }
                     if(date != '-') {
                         if(date == ((cekChat[j].created_at + '').substring(0, 10) + '')){
-                            console.log('stack', cekChat[j].created_at)
+                            // console.log('stack', cekChat[j].created_at)
                             // stack chat dengan hari yang sama
                             momentDate = moment(cekChat[j].created_at, moment.ISO_8601).fromNow()
                             cekChat[j].moment = moment(cekChat[j].created_at, moment.ISO_8601).format('LT')
@@ -1181,13 +1187,23 @@ router.get('/dm', cekJWT, async(req,res)=>{
                     value: tempChat, 
                     momentDate: momentDate
                 })
+
+                if(flag){
+                    unreadCtr++
+                }
+
                 allResu.push(resu[i])
             }
         }
 
+        allResu.push({
+            'id': -1,
+            'unreadCtr': unreadCtr
+        })
+
         return res.status(200).json({
             'message': 'Get All DM!',
-            'data':allResu,
+            'data': allResu,
             'status': 'Success'
         });
         
@@ -1358,7 +1374,9 @@ router.post('/dm/chat/send', cekJWT, async (req,res)=> {
         pusher.trigger(`${req.body.dm_relation}`, "sendMessage", {
             user_sender_id: req.user.id,
             target: req.body.target_user_id,
-            message: req.body.message
+            message: req.body.message, 
+            moment: moment().format('LT'),
+            id: moment().format('LTS')
         });
 
         return res.status(201).json({

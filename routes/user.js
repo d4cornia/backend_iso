@@ -66,10 +66,11 @@ const {
     cekJWT,
     verifyCode
 } = require("../middleware");
+const { response } = require("express");
 
 
 const kFormatter = (num) => {
-    return Math.abs(num) > 999 ? Math.sign(num)((Math.abs(num)/1000).toFixed(1)) + 'k' : Math.sign(num) * Math.abs(num)
+    return Math.abs(num) > 999 ? Math.sign(num) * ((Math.abs(num)/1000).toFixed(1)) + 'k' : Math.sign(num) * Math.abs(num)
 }
 
 
@@ -166,7 +167,7 @@ router.post('/register', async (req,res)=> {
                 'name': req.body.name,
                 'age': req.body.age,
                 'description': req.body.description,
-                'image_id': '-',
+                'image_id': 'default-user',
             },
             'status': 'Success'
         });
@@ -231,6 +232,19 @@ router.post('/login', async (req,res)=> {
     }
 });
 
+router.post('/isAuthenticated', cekJWT, (req,res) => {
+    if (req.user) {
+        return res.status(200).json({
+            'message': 'authenticated',
+            'status': 'Success'
+        })
+    }
+    
+    return res.status(401).json({
+        'message': 'unauthenticated',
+    })
+})
+
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -240,18 +254,23 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// request user reset password
-router.post('/profile/password/requestReset', async(req,res)=>{
-    console.log(process.env.email)
-    if(req.body.email){
-        let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
+const sendOtp = async (emailReceiver) => {
+    // Check jika user ada
+
+    return response;
+}
+
+router.post('/profile/password/resendOtp', async(req,res) => {
+    if (req.body.email) {
+        let resu = await db.query(`SELECT verification_code FROM users WHERE email='${req.body.email}'`);
         if(resu.length == 0) {
             return res.status(200).json({
-                'error_msg': `Email tidak ditemukan!`
+                'error_msg': `Email doesn't exists`
             });
         }
 
-        let ver_code = genID(6, 2);
+        const ver_code = resu[0].verification_code
+
         const mailOptions = {
             from: process.env.email,
             to: req.body.email,
@@ -261,7 +280,7 @@ router.post('/profile/password/requestReset', async(req,res)=>{
 
         await transporter.sendMail(mailOptions, function(error, info){
             if (error) {
-                console.log(error);
+                console.log(error, 'error');
                 return res.status(403).json({
                     'message': 'Auth Problem!',
                     'data':{
@@ -273,11 +292,60 @@ router.post('/profile/password/requestReset', async(req,res)=>{
                 });
             } else {
                 console.log('Email sent: ' + info.response);
+                return res.status(200).json({
+                    'message': 'Email sent!'
+                });
             }
         });
+    } else {
+        return res.status(401).json({
+            'error_msg': `Unauthorized`
+        });
+    }
 
+})
+
+// request user reset password
+router.post('/profile/password/requestReset', async(req,res)=>{
+    console.log(process.env.email)
+    if(req.body.email){
+        let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
+        if(resu.length == 0) {
+            return res.status(200).json({
+                'error_msg': `Email doesn't exists`
+            });
+        }
         // update verification_code
+        let ver_code = genID(6, 2);
         await db.query(`UPDATE users SET verification_code='${ver_code}' WHERE id='${resu[0].id}'`);
+
+        // Kirim OTP ke email yang dituju
+        const mailOptions = {
+            from: process.env.email,
+            to: req.body.email,
+            subject: 'Reset Password',
+            text: 'Your Verification Code : ' + ver_code + '\n' + 'Do not share this with anyone!' + '\n' + 'Remember WICKED is good!'
+        };
+
+        await transporter.sendMail(mailOptions, function(error, info){
+            if (error) {
+                console.log(error, 'error');
+                return res.status(403).json({
+                    'message': 'Auth Problem!',
+                    'data':{
+                        'email env': process.env.email,
+                        'pass env': process.env.password,
+                        'body email': req.body.email
+                    },
+                    'status': 'Error'
+                });
+            } else {
+                console.log('Email sent: ' + info.response);
+                return res.status(200).json({
+                    'message': 'Email sent!'
+                });
+            }
+        });
 
         return res.status(200).json({
             'message': 'Request Berhasil!',
@@ -679,7 +747,7 @@ router.post('/post/following', cekJWT, async(req,res)=>{
         let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND status=1`);
         let final = [];
         for (let i = 0; i < resu.length; i++) {
-            // cek realsi dia ke kita apa
+            // cek relasi dia ke kita apa
             let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${resu[i].followed_user_id}' AND followed_user_id='${req.user.id}' ORDER BY ID DESC`);
             if(temp.length == 0 || parseInt(temp[0].status) === 1) {
                 // hanya jika mereka tidak block kita baru kita bisa liat post mereka
@@ -694,10 +762,13 @@ router.post('/post/following', cekJWT, async(req,res)=>{
             }
         }
         console.log(final)
+        final.sort((a, b) => {return b.id - a.id})
 
         // post dengan like terbanyak
-        let temp = await db.query(`SELECT post_id, count(id) as 'ctr' FROM user_likes GROUP BY post_id ORDER BY count(id) DESC`);
-        // console.log(temp)
+        let temp = await db.query(`SELECT post_id, count(id) as 'ctr' FROM user_likes WHERE status=1 GROUP BY post_id ORDER BY post_id DESC`);
+
+        // Sort Likes count
+        temp.sort((a,b) => {return b.ctr - a.ctr})
         let flag = true;
         let temp2 = [];
         
@@ -771,7 +842,7 @@ router.post('/post/following', cekJWT, async(req,res)=>{
             final[i].comments = temp
         }
 
-        // console.log(final)
+        console.log('final', final)
 
         return res.status(200).json({
             'message': 'Following post Result!',
@@ -1226,7 +1297,7 @@ router.patch('/dm/chat/read', cekJWT, async(req,res)=> {
 })
 
 // send chat 
-router.post('/dm/chats', cekJWT, async (req,res)=> {
+router.post('/dm/chat/send', cekJWT, async (req,res)=> {
     if(req.body.dm_relation && req.body.target_user_id && req.body.message) {
         let resu = await db.query(`INSERT INTO chats VALUES(null, '${req.body.dm_relation}', '${req.user.id}', '${req.body.target_user_id}', '${req.body.message}', 2, CURRENT_TIMESTAMP, null)`);
         await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${req.body.target_user_id}', 'send you a message', 0, 4, CURRENT_TIMESTAMP, null)`);

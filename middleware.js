@@ -5,7 +5,7 @@ const CryptoJS = require("crypto-js");
 async function cekJWT(req, res, next){
     if(!req.headers['x-auth-token']){
         return res.status(401).json({
-            'error msg': 'Unauthorized!'
+            'error_msg': 'Unauthorized!'
         });
     }
     let token = req.headers['x-auth-token'];
@@ -15,7 +15,7 @@ async function cekJWT(req, res, next){
     }catch(e){
         console.log(e);
         return res.status(401).json({
-            'error msg': 'Invalid Token!'
+            'error_msg': 'Invalid Token'
         });
     }
 

@@ -99,8 +99,8 @@ function timeSince(date) {
     return Math.floor(seconds) + " seconds";
 }
 var aDay = 24*60*60*1000;
-console.log(timeSince(new Date(Date.now()-aDay)));
-console.log(timeSince(new Date(Date.now()-aDay*2)));
+// console.log(timeSince(new Date(Date.now()-aDay)));
+// console.log(timeSince(new Date(Date.now()-aDay*2)));
 
 
 // add in function
@@ -215,6 +215,7 @@ router.post('/login', async (req,res)=> {
         return res.status(200).json({
             'message': 'Login Berhasil!',
             'data':{
+                'id': resu[0].id,
                 'username': resu[0].username,
                 'email': resu[0].email,
                 'name': resu[0].name,
@@ -840,6 +841,7 @@ router.post('/post/following', cekJWT, async(req,res)=>{
             }
 
             final[i].comments = temp
+            final[i].commentsCtr = temp.length
         }
 
         console.log('final', final)
@@ -1116,7 +1118,7 @@ router.get('/notifications', cekJWT, async(req,res)=>{
 
 // get all dm, R
 router.get('/dm', cekJWT, async(req,res)=>{
-    let resu = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND status = 1`);
+    let resu = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND status=1`);
     let allResu= [];
 
     let cekChat = null;
@@ -1125,9 +1127,60 @@ router.get('/dm', cekJWT, async(req,res)=>{
         for(let i = 0; i < resu.length; i++){
             // let cekChat = null;
             cekChat = await db.query(`SELECT * FROM chats WHERE dm_relation='${resu[i].dm_relation}' AND user_sender_id='${req.user.id}' AND user_receiver_id='${resu[i].user_id_2}'
-            OR (dm_relation='${resu[i].dm_relation}' AND user_sender_id='${resu[i].user_id_2}' AND user_receiver_id='${req.user.id}')`);
+            OR (dm_relation='${resu[i].dm_relation}' AND user_sender_id='${resu[i].user_id_2}' AND user_receiver_id='${req.user.id}') ORDER BY id DESC`);
             
             if(cekChat.length > 0){
+                // add aditional info
+                let user = await db.query(`SELECT * FROM users WHERE id='${resu[i].user_id_2}'`);
+
+                // ctr followers
+                let temp = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${user[0].id}' AND status=1`);
+                user[0].followersCtr = kFormatter(temp.length)
+
+                // set target user
+                resu[i].target_user = user[0]
+
+                // last chat
+                resu[i].lastChat = cekChat[0]
+
+                resu[i].chats = []
+                let tempChat = []
+                let date = '-'
+                let momentDate = '-'
+                for (let j = cekChat.length - 1; j >= 0 ; j--) {
+                    if(date != '-') {
+                        if(date == ((cekChat[j].created_at + '').substring(0, 10) + '')){
+                            console.log('stack', cekChat[j].created_at)
+                            // stack chat dengan hari yang sama
+                            momentDate = moment(cekChat[j].created_at, moment.ISO_8601).fromNow()
+                            cekChat[j].moment = moment(cekChat[j].created_at, moment.ISO_8601).format('LT')
+                            tempChat.push(cekChat[j])
+                        } else {    
+                            date = (cekChat[j].created_at + '').substring(0, 10)
+
+                            // push category berdasarkan hari berbeda
+                            resu[i].chats.push({
+                                value: tempChat, 
+                                momentDate: momentDate
+                            })
+
+                            // new category berdasarkan hari
+                            tempChat = []
+                            cekChat[j].moment = moment(cekChat[j].created_at, moment.ISO_8601).format('LT')
+                            tempChat.push(cekChat[j])
+                        }
+                    } else {
+                        date = (cekChat[j].created_at + '').substring(0, 10)
+
+                        cekChat[j].moment = moment(cekChat[j].created_at, moment.ISO_8601).format('LT')
+                        tempChat.push(cekChat[j])
+                    }
+                }
+                momentDate = moment(tempChat[0].created_at, moment.ISO_8601).fromNow()
+                resu[i].chats.push({
+                    value: tempChat, 
+                    momentDate: momentDate
+                })
                 allResu.push(resu[i])
             }
         }

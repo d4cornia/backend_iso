@@ -430,23 +430,43 @@ router.get('/profile/:username', cekJWT, async(req,res)=>{
         });
     }
 
+    // cek realtionship jika bukan diri 
+    let relation = false // diri sendiri false
+    if(req.params.username != req.user.username){
+        let rel = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND followed_user_id='${user[0].id}' AND status!=0 ORDER BY id DESC`);
+        if(rel.length > 0 && parseInt(rel[0].status) == 1){
+            relation = true // FOLLOW
+        }
+    }
+
     // get all our posts
     let resu = await db.query(`SELECT * FROM posts WHERE user_id='${user[0].id}' AND status!=0`);
+    for (let i = 0; i < resu.length; i++) {
+        // how mmany likes
+        let post_likes = await db.query(`SELECT * FROM user_likes WHERE post_id='${resu[i].id}' AND status!=0`);
+        resu[i].likesCtr = kFormatter(post_likes.length)
+
+        // how many comments
+        let post_comments = await db.query(`SELECT * FROM user_comments WHERE post_id='${resu[i].id}' AND status!=0`);
+        resu[i].commentsCtr = kFormatter(post_comments.length)
+    }
     
     // ctr following
     let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${user[0].id}' AND status=1`);
-    user[0].followingCtr = temp.length
+    user[0].followingCtr = kFormatter(temp.length)
 
     // ctr followers
     temp = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${user[0].id}' AND status=1`);
-    user[0].followersCtr = temp.length
+    user[0].followersCtr = kFormatter(temp.length)
+    user[0].followers = temp
 
     return res.status(200).json({
         'message': 'User profile!',
         'data': {
             'profile': user[0],
             'posts': resu, 
-            'postsCtr': resu.length
+            'postsCtr': resu.length,
+            'relation': relation
         },
         'status' : 'Success'
     });

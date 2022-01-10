@@ -550,7 +550,7 @@ router.patch('/profile/password/update', cekJWT, async(req,res)=>{
 router.post('/searchUser', cekJWT, async(req,res)=>{
     if(req.body.target_user){
         let final = []
-        let resu = await db.query(`SELECT * FROM users WHERE username LIKE %'${req.body.target_user}'% OR name LIKE %'${req.body.target_user}'% AND id!='${req.user.id}' AND status!=0`);
+        let resu = await db.query(`SELECT * FROM users WHERE username LIKE '%${req.body.target_user}%' OR name LIKE '%${req.body.target_user}%' AND id!='${req.user.id}' AND status!=0`);
         if(resu.length > 0) {
             // cek di block oleh user lain tidak, jika kita yang block user lain maka masi bisa ada di serach
             let status = null
@@ -566,7 +566,7 @@ router.post('/searchUser', cekJWT, async(req,res)=>{
                         status = temp[0].status 
                     }
                     resu[i].relationStatus = status
-
+                    resu[i].subtitle = resu[i].name
                     final.push(resu[i])
                 }else{
                     if(parseInt(temp[0].status) != 2){
@@ -578,7 +578,7 @@ router.post('/searchUser', cekJWT, async(req,res)=>{
                             status = temp[0].status 
                         }
                         resu[i].relationStatus = status
-
+                        resu[i].subtitle = resu[i].name
                         final.push(resu[i])
                     }
                 }

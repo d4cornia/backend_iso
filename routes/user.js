@@ -841,7 +841,7 @@ router.post('/post/following', cekJWT, async(req,res)=>{
             }
 
             final[i].comments = temp
-            final[i].commentsCtr = temp.length
+            final[i].commentsCtr = kFormatter(temp.length)
         }
 
         console.log('final', final)
@@ -1020,6 +1020,56 @@ router.get('/post/search', cekJWT, async(req,res)=>{
     }
 })
 
+// search by target_post_id
+router.get('/post/search/:id', cekJWT, async(req,res)=>{
+    let resu = await db.query(`SELECT * FROM posts WHERE id='${req.params.id}' AND status!=0`);
+
+    console.log(req.params.id)
+    
+    let user = await db.query(`SELECT * FROM users WHERE id='${resu[0].user_id}'`);
+    
+    // ctr followers
+    let temp = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${user[0].id}' AND status=1`);
+    user[0].followersCtr = kFormatter(temp.length)
+
+    resu[0].target_user = user[0]
+
+    // comments
+            temp = await db.query(`SELECT * FROM user_comments WHERE post_id='${resu[0].id}' AND status=1`);
+            if (temp.length > 0){
+                for (let j = 0; j < temp.length; j++) {
+                    // add aditional info for comments
+                    user = await db.query(`SELECT * FROM users WHERE id='${temp[j].user_id}'`);
+                    temp[j].user = user[0]
+                    temp[j].moment = moment(temp[j].created_at, moment.ISO_8601).fromNow()
+                }
+                resu[0].hasComments = true
+            } else {
+                resu[0].hasComments = false
+            }
+
+            resu[0].comments = temp
+            resu[0].commentsCtr = kFormatter(temp.length)
+            
+            // cek apa relasi kita ke post, like atau belom like
+            temp = await db.query(`SELECT * FROM user_likes WHERE user_id='${req.user.id}' AND post_id='${resu[0].id}' ORDER BY ID DESC`);
+            resu[0].isLiked = temp.length == 0 ? 0 : temp[0].status
+
+            // cek apa relasi kita ke post, like atau belom like
+            temp = await db.query(`SELECT * FROM user_likes WHERE post_id='${resu[0].id}' AND status=1`);
+            resu[0].likesCtr = kFormatter(temp.length)
+
+            resu[0].moment = moment(resu[0].created_at, moment.ISO_8601).fromNow()
+
+            console.log(resu[0])
+
+    return res.status(200).json({
+        'message': 'Post Search By Id!',
+        'data': resu[0],
+        'status' : 'Success'
+    }); 
+})
+
 // get all comment suatu post data
 router.get('/comment/:post_id', cekJWT, async(req,res) => {
     if(req.params.post_id){
@@ -1045,7 +1095,7 @@ router.get('/comment/:post_id', cekJWT, async(req,res) => {
 router.post('/post/comment', cekJWT, async (req,res)=> {
     // cek field kosong
     if(req.body.target_post_id && req.body.commentTexts){
-        let resu = await db.query(`SELECT * FROM post WHERE id='${req.body.target_post_id}'`);
+        let resu = await db.query(`SELECT * FROM posts WHERE id='${req.body.target_post_id}'`);
         // insert new notif
         await db.query(`INSERT INTO notifications VALUES(null, '${req.user.id}', '${resu[0].user_id}', 'commented on your post', 0, 3, CURRENT_TIMESTAMP, null)`, async function (err, result) {
             if (err) throw err;

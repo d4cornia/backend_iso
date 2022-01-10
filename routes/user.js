@@ -576,6 +576,7 @@ router.post('/searchUser', cekJWT, async(req,res)=>{
             let status = null
             for(let i=0; i < resu.length; i++){
                 // cek hubungan target ke kita apa
+                console.log('id', resu[i].id)
                 let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${resu[i].id}' AND followed_user_id='${req.user.id}' ORDER BY id DESC`);
                 if(temp.length == 0){
                     // belum ada relationship brrt tidak diblock
@@ -590,6 +591,7 @@ router.post('/searchUser', cekJWT, async(req,res)=>{
                     final.push(resu[i])
                 }else{
                     if(parseInt(temp[0].status) != 2){
+                        console.log('status', temp)
                         // jika tidak diblock (0 / 1) dimasukin
                         // tambahkan hubungan kita ke user target itu apa
                         temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND followed_user_id='${resu[i].id}' ORDER BY id DESC`);
@@ -782,7 +784,7 @@ router.post('/post/following', cekJWT, async(req,res)=>{
                 }
             }
         }
-        console.log(final)
+        // console.log(final)
         final.sort((a, b) => {return b.id - a.id})
 
         // post dengan like terbanyak
@@ -864,7 +866,7 @@ router.post('/post/following', cekJWT, async(req,res)=>{
             final[i].commentsCtr = kFormatter(temp.length)
         }
 
-        console.log('final', final)
+        // console.log('final', final)
 
         return res.status(200).json({
             'message': 'Following post Result!',
@@ -939,7 +941,7 @@ router.delete('/post/delete', cekJWT, async(req, res) => {
 
 //get total post like R
 router.get('/like/:post_id', cekJWT, async (req,res)=> {
-    console.log(req.params.post_id)
+    // console.log(req.params.post_id)
     if(req.params.post_id){
         let post_id = req.params.post_id;
         let resu = await db.query(`SELECT * FROM user_likes WHERE post_id='${post_id}' AND status=1 `);

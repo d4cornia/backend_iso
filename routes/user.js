@@ -1298,10 +1298,10 @@ router.post('/dm', cekJWT, async (req,res)=> {
         if(cekUpdate.length>0){
             // update
             await db.query(`UPDATE dm SET status=1 WHERE user_id_1='${req.user.id}' AND user_id_2='${req.body.target_user_id}'`);
+            let dm = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND user_id_2='${req.body.target_user_id}'`);
             return res.status(200).json({
                 'message': 'Berhasil Create DM!',
-                'data':{
-                },
+                'data': dm,
                 'status': 'Success'
             });
         }else{

@@ -888,15 +888,16 @@ router.post('/post/upload', cekJWT, async (req,res)=> {
     //cek field kosong
     // type 1 = image, 2 = video
     if(req.body.caption && req.body.cloudinary_id && req.body.tag && req.body.type){
-        let tags = ''
-        for(let i= 0; i < req.body.tag.length; i++){
-            tags += req.body.tag[i]
-            if(i < req.body.tag.length - 1){
-                tags += ', '
-            }
-        }
+        // let tags = ''
+        // req.body.tag = req.body.tag.split(',')
+        // for(let i= 0; i < req.body.tag.length; i++){
+        //     tags += req.body.tag[i]
+        //     if(i < req.body.tag.length - 1){
+        //         tags += ', '
+        //     }
+        // }
 
-        await db.query(`INSERT INTO posts VALUES(null, '${req.user.id}', '${req.body.cloudinary_id}', '${req.body.caption}', '${tags}', ${req.body.type}, CURRENT_TIMESTAMP, null)`);
+        await db.query(`INSERT INTO posts VALUES(null, '${req.user.id}', '${req.body.cloudinary_id}', '${req.body.caption}', '${req.body.tag}', ${req.body.type}, CURRENT_TIMESTAMP, null)`);
 
         return res.status(200).json({
             'message': 'Post Berhasil!',

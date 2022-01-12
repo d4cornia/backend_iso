@@ -1042,10 +1042,50 @@ router.post('/post/unlike', cekJWT, async (req,res)=> {
     }
 });
 
+router.get('/hashtag/search/:keyword', cekJWT, async(req,res)=>{
+    let hashtags = []
+    let resu = await db.query(`SELECT * FROM posts WHERE tag LIKE '%${req.params.keyword}%' AND status!=0`);
+
+    for (let i = 0; i < resu.length; i++) {
+        let temp = resu[i].tag.split(', ')
+        for (let j = 0; j < temp.length; j++) {
+            if(temp[j].includes(req.params.keyword)){
+                let postsCtr = await db.query(`SELECT * FROM posts WHERE tag LIKE '%${temp[j].replace('#', '')}%' AND status!=0`);
+                if(postsCtr.length > 0){
+                    hashtags.push({
+                        'username': temp[j], 
+                        'image_id': 'hashtag-image', 
+                        'subtitle': postsCtr.length
+                    })
+                }
+            }
+        }
+        
+    } 
+
+        return res.status(200).json({
+            'message': 'Post Search Result!',
+            'data': hashtags,
+            'status' : 'Success'
+        }); 
+})
+
 // search post dari hash tag, R
-router.get('/post/search', cekJWT, async(req,res)=>{
+router.post('/post/search', cekJWT, async(req,res)=>{
+    console.log(req.body.keyword)
     if(req.body.keyword){
         let resu = await db.query(`SELECT * FROM posts WHERE tag LIKE '%${req.body.keyword}%' AND status!=0`);
+
+        for (let i = 0; i < resu.length; i++) {
+            //aditional info
+            let temp = await db.query(`SELECT * FROM user_comments WHERE post_id='${resu[0].id}' AND status=1`);
+            resu[0].commentsCtr = kFormatter(temp.length)
+
+            temp = await db.query(`SELECT * FROM user_likes WHERE post_id='${resu[0].id}' AND status=1`);
+            resu[0].likesCtr = kFormatter(temp.length)
+        }
+        
+
         return res.status(200).json({
             'message': 'Post Search Result!',
             'data': resu,

@@ -219,7 +219,8 @@ router.post('/login', async (req,res)=> {
                 'username': resu[0].username,
                 'email': resu[0].email,
                 'name': resu[0].name,
-                'token' : token
+                'token' : token,
+                'image_id': resu[0].image_id
             },
             'status': 'Success',
         });
@@ -766,59 +767,76 @@ router.get('/following', cekJWT, async(req,res)=>{
 // show all post from following users
 router.post('/post/following', cekJWT, async(req,res)=>{
     if(req.body.size){
-        // get all user yang kita follow
-        let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND status=1`);
-        let final = [];
-        for (let i = 0; i < resu.length; i++) {
-            // cek relasi dia ke kita apa
-            let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${resu[i].followed_user_id}' AND followed_user_id='${req.user.id}' ORDER BY ID DESC`);
-            if(temp.length == 0 || parseInt(temp[0].status) === 1) {
-                // hanya jika mereka tidak block kita baru kita bisa liat post mereka
-                let posts = await db.query(`SELECT * FROM posts WHERE user_id='${resu[i].followed_user_id}' AND status!=0 ORDER BY created_at DESC`);
-                for (let j = 0; j < req.body.size; j++) {
-                    if(j == posts.length) {
-                        break
+        // Get all post dari user yang kita follow
+        let followedPosts = await db.query(`SELECT posts.* FROM posts JOIN user_relationships ON posts.user_id = user_relationships.followed_user_id WHERE user_relationships.user_id='${req.user.id}' AND user_relationships.status=1 ORDER BY posts.id DESC LIMIT ${req.body.size}`)
+        let final = followedPosts
+        
+        if(final.length < req.body.size) {
+            // Get newest post(karna order by id desc) dengan limit size jika panjang final masih dibawah size
+            let newestPosts = await db.query(`SELECT * FROM posts ORDER BY id DESC LIMIT ${req.body.size}`)
+            newestPosts.forEach(post => {
+                // Jika jumlah final masih dibawah size
+                if (req.body.size > final.length) {
+                    // Jika post belum ada di final maka push ke final
+                    if (final.findIndex(({ id }) => id === post.id) === -1) {
+                        final.push(post)
                     }
-                   
-                    final.push(posts[j])
-                }
-            }
+                } 
+            });
         }
-        // console.log(final)
-        final.sort((a, b) => {return b.id - a.id})
+        // get all user yang kita follow
+        // let resu = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND status=1`);
+        // let final = [];
+        // for (let i = 0; i < resu.length; i++) {
+        //     // cek relasi dia ke kita apa
+        //     let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${resu[i].followed_user_id}' AND followed_user_id='${req.user.id}' ORDER BY ID DESC`);
+        //     if(temp.length == 0 || parseInt(temp[0].status) === 1) {
+        //         // hanya jika mereka tidak block kita baru kita bisa liat post mereka
+        //         let posts = await db.query(`SELECT * FROM posts WHERE user_id='${resu[i].followed_user_id}' AND status!=0 ORDER BY created_at DESC`);
+        //         for (let j = 0; j < req.body.size; j++) {
+        //             if(j == posts.length) {
+        //                 break
+        //             }
+                   
+        //             final.push(posts[j])
+        //         }
+        //     }
+        // }
 
+        // Problem: Kalo gk ada yang like(tidak ada di table user_likes) gak akan kepilih
         // post dengan like terbanyak
-        let temp = await db.query(`SELECT post_id, count(id) as 'ctr' FROM user_likes WHERE status=1 GROUP BY post_id ORDER BY post_id DESC`);
+        // let temp = await db.query(`SELECT post_id, count(id) as 'ctr' FROM user_likes GROUP BY post_id ORDER BY post_id DESC`);
+        
 
         // Sort Likes count
-        temp.sort((a,b) => {return b.ctr - a.ctr})
-        let flag = true;
-        let temp2 = [];
+        // temp.sort((a,b) => {return b.ctr - a.ctr})
+        // let flag = true;
+        // let temp2 = [];
         
-        for (let i = 0; i < req.body.size - final.length; i++) {
+        // for (let i = 0; i < req.body.size - final.length; i++) {
             
-            if(i >= temp.length){
-                break
-            }
-            flag = true;
+        //     if(i >= temp.length){
+        //         break
+        //     }
+        //     flag = true;
            
-            for (let j = 0; j < final.length; j++) {
-                if(final[j].id == temp[i].post_id){
-                    flag = false;
-                    break;
-                }
+        //     for (let j = 0; j < final.length; j++) {
+        //         if(final[j].id == temp[i].post_id){
+        //             flag = false;
+        //             break;
+        //         }
                 
-            }
-            if(flag)
-            {
-                let post = await db.query(`SELECT * FROM posts WHERE id='${temp[i].post_id}'`);
-                temp2.push(post[0]);
-            }
-        }
+        //     }
+        //     if(flag)
+        //     {
+        //         let post = await db.query(`SELECT * FROM posts WHERE id='${temp[i].post_id}'`);
+        //         temp2.push(post[0]);
+        //     }
+        // }
  
-        for (let i = 0; i < temp2.length; i++) {
-            final.push(temp2[i]);            
-        }
+        // for (let i = 0; i < temp2.length; i++) {
+        //     final.push(temp2[i]);            
+        // }
 
         // aditional info
         for (let i = 0; i < final.length; i++) {

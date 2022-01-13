@@ -293,7 +293,7 @@ router.post('/profile/password/resendOtp', async(req,res) => {
                     'status': 'Error'
                 });
             } else {
-                console.log('Email sent: ' + info.response);
+                //console.log('Email sent: ' + info.response);
                 return res.status(200).json({
                     'message': 'Email sent!'
                 });
@@ -309,7 +309,7 @@ router.post('/profile/password/resendOtp', async(req,res) => {
 
 // request user reset password
 router.post('/profile/password/requestReset', async(req,res)=>{
-    console.log(process.env.email)
+    //console.log(process.env.email)
     if(req.body.email){
         let resu = await db.query(`SELECT * FROM users WHERE email='${req.body.email}'`);
         if(resu.length == 0) {
@@ -331,7 +331,7 @@ router.post('/profile/password/requestReset', async(req,res)=>{
 
         await transporter.sendMail(mailOptions, function(error, info){
             if (error) {
-                console.log(error, 'error');
+                //console.log(error, 'error');
                 return res.status(403).json({
                     'message': 'Auth Problem!',
                     'data':{
@@ -342,7 +342,7 @@ router.post('/profile/password/requestReset', async(req,res)=>{
                     'status': 'Error'
                 });
             } else {
-                console.log('Email sent: ' + info.response);
+                //console.log('Email sent: ' + info.response);
                 return res.status(200).json({
                     'message': 'Email sent!'
                 });
@@ -498,7 +498,7 @@ router.patch('/profile/update', cekJWT, async(req,res)=>{
 
 // updateimage profile
 router.patch('/profile/image/update', cekJWT, async(req,res)=>{
-    console.log(req.body.new_image_id, req.user.id)
+    //console.log(req.body.new_image_id, req.user.id)
     
     if(req.body.new_image_id){
         // update
@@ -523,7 +523,7 @@ router.patch('/profile/image/update', cekJWT, async(req,res)=>{
 
 // updating user password
 router.patch('/profile/password/update', cekJWT, async(req,res)=>{
-    console.log(req.body.old_password,req.body.new_password,req.body.confirm_password)
+    //console.log(req.body.old_password,req.body.new_password,req.body.confirm_password)
     if(req.body.old_password && req.body.new_password && req.body.confirm_password){
         // cek old password
         let resu = await db.query(`SELECT * FROM users WHERE password='${CryptoJS.SHA3(req.body.old_password, { outputLength: 256 })}'`);
@@ -577,7 +577,7 @@ router.post('/searchUser', cekJWT, async(req,res)=>{
             let status = null
             for(let i=0; i < resu.length; i++){
                 // cek hubungan target ke kita apa
-                console.log('id', resu[i].id)
+                //console.log('id', resu[i].id)
                 let temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${resu[i].id}' AND followed_user_id='${req.user.id}' ORDER BY id DESC`);
                 if(temp.length == 0){
                     // belum ada relationship brrt tidak diblock
@@ -592,7 +592,7 @@ router.post('/searchUser', cekJWT, async(req,res)=>{
                     final.push(resu[i])
                 }else{
                     if(parseInt(temp[0].status) != 2){
-                        console.log('status', temp)
+                        //console.log('status', temp)
                         // jika tidak diblock (0 / 1) dimasukin
                         // tambahkan hubungan kita ke user target itu apa
                         temp = await db.query(`SELECT * FROM user_relationships WHERE user_id='${req.user.id}' AND followed_user_id='${resu[i].id}' ORDER BY id DESC`);
@@ -1072,7 +1072,7 @@ router.get('/hashtag/search/:keyword', cekJWT, async(req,res)=>{
 
 // search post dari hash tag, R
 router.post('/post/search', cekJWT, async(req,res)=>{
-    console.log(req.body.keyword)
+    //console.log(req.body.keyword)
     if(req.body.keyword){
         let resu = await db.query(`SELECT * FROM posts WHERE tag LIKE '%${req.body.keyword}%' AND status!=0`);
 
@@ -1105,7 +1105,7 @@ router.post('/post/search', cekJWT, async(req,res)=>{
 router.get('/post/search/:id', cekJWT, async(req,res)=>{
     let resu = await db.query(`SELECT * FROM posts WHERE id='${req.params.id}' AND status!=0`);
 
-    console.log(req.params.id)
+   // console.log(req.params.id)
     
     let user = await db.query(`SELECT * FROM users WHERE id='${resu[0].user_id}'`);
     
@@ -1142,7 +1142,7 @@ router.get('/post/search/:id', cekJWT, async(req,res)=>{
 
             resu[0].moment = moment(resu[0].created_at, moment.ISO_8601).fromNow()
 
-            console.log(resu[0])
+            //(resu[0])
 
     return res.status(200).json({
         'message': 'Post Search By Id!',
@@ -1230,11 +1230,12 @@ router.delete('/post/comment/delete', cekJWT, async(req, res) => {
 
 // get all notificaitons, R
 router.get('/notifications', cekJWT, async(req,res)=>{
-    let resu = await db.query(`SELECT * FROM notifications WHERE receiver_id='${req.user.id}' AND status!=0 `);
+    let resu = await db.query(`SELECT * FROM notifications WHERE receiver_id='${req.user.id}' AND status!=0 ORDER BY CREATED_AT DESC`);
 
     for(let i = 0; i < resu.length; i++){
         detailUser = await db.query(`SELECT * FROM users WHERE id='${resu[i].sender_id}' `);
         resu[i].detailUser = detailUser
+        resu[i].dateNow = moment(resu[i].created_at, moment.ISO_8601).fromNow()
     }
     
     return res.status(200).json({
@@ -1249,82 +1250,118 @@ router.get('/notifications', cekJWT, async(req,res)=>{
 
 // get all dm, R
 router.get('/dm', cekJWT, async(req,res)=>{
+    
     let resu = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND status=1`);
     // console.log(req.user)
     let allResu= [];
-
+    let pembuatDM = false;
     let cekChat = null;
     let unreadCtr = 0
     if(resu.length > 0){
         //Cek ada chat
         for(let i = 0; i < resu.length; i++){
-            // let cekChat = null;
+            pembuatDM = false;
+            if(resu[i].id % 2 == 1){
+                pembuatDM = true;
+            }
+            // console.log("id" + resu[i].id);
             cekChat = await db.query(`SELECT * FROM chats WHERE dm_relation='${resu[i].dm_relation}' AND user_sender_id='${req.user.id}' AND user_receiver_id='${resu[i].user_id_2}'
             OR (dm_relation='${resu[i].dm_relation}' AND user_sender_id='${resu[i].user_id_2}' AND user_receiver_id='${req.user.id}') ORDER BY id DESC`);
-            
+            // console.log("chat" + cekChat.length);
             if(cekChat.length > 0){
-                // add aditional info
-                let user = await db.query(`SELECT * FROM users WHERE id='${resu[i].user_id_2}'`);
+                    // add aditional info
+                    let user = await db.query(`SELECT * FROM users WHERE id='${resu[i].user_id_2}'`);
 
-                // ctr followers
-                let temp = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${user[0].id}' AND status=1`);
-                user[0].followersCtr = kFormatter(temp.length)
+                    // ctr followers
+                    let temp = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${user[0].id}' AND status=1`);
+                    user[0].followersCtr = kFormatter(temp.length)
 
-                // set target user
-                resu[i].target_user = user[0]
+                    // set target user
+                    resu[i].target_user = user[0]
 
-                // last chat
-                resu[i].lastChat = cekChat[0]
+                    // last chat
+                    resu[i].lastChat = cekChat[0]
 
-                resu[i].chats = []
-                let tempChat = []
-                let date = '-'
-                let momentDate = '-'
-                let flag = false
-                for (let j = cekChat.length - 1; j >= 0 ; j--) {
-                    if(cekChat[j].status == 2 && req.user.id == cekChat[j].user_receiver_id){
-                        flag = true
-                    }
-                    if(date != '-') {
-                        if(date == ((cekChat[j].created_at + '').substring(0, 10) + '')){
-                            // console.log('stack', cekChat[j].created_at)
-                            // stack chat dengan hari yang sama
-                            momentDate = moment(cekChat[j].created_at, moment.ISO_8601).fromNow()
-                            cekChat[j].moment = moment(cekChat[j].created_at, moment.ISO_8601).format('LT')
-                            tempChat.push(cekChat[j])
-                        } else {    
+                    resu[i].chats = []
+                    let tempChat = []
+                    let date = '-'
+                    let momentDate = '-'
+                    let flag = false
+                    for (let j = cekChat.length - 1; j >= 0 ; j--) {
+                        if(cekChat[j].status == 2 && req.user.id == cekChat[j].user_receiver_id){
+                            flag = true
+                        }
+                        if(date != '-') {
+                            if(date == ((cekChat[j].created_at + '').substring(0, 10) + '')){
+                                // console.log('stack', cekChat[j].created_at)
+                                // stack chat dengan hari yang sama
+                                momentDate = moment(cekChat[j].created_at, moment.ISO_8601).fromNow()
+                                cekChat[j].moment = moment(cekChat[j].created_at, moment.ISO_8601).format('LT')
+                                tempChat.push(cekChat[j])
+                            } else {    
+                                date = (cekChat[j].created_at + '').substring(0, 10)
+
+                                // push category berdasarkan hari berbeda
+                                resu[i].chats.push({
+                                    value: tempChat, 
+                                    momentDate: momentDate
+                                })
+
+                                // new category berdasarkan hari
+                                tempChat = []
+                                cekChat[j].moment = moment(cekChat[j].created_at, moment.ISO_8601).format('LT')
+                                tempChat.push(cekChat[j])
+                            }
+                        } else {
                             date = (cekChat[j].created_at + '').substring(0, 10)
 
-                            // push category berdasarkan hari berbeda
-                            resu[i].chats.push({
-                                value: tempChat, 
-                                momentDate: momentDate
-                            })
-
-                            // new category berdasarkan hari
-                            tempChat = []
                             cekChat[j].moment = moment(cekChat[j].created_at, moment.ISO_8601).format('LT')
                             tempChat.push(cekChat[j])
                         }
-                    } else {
-                        date = (cekChat[j].created_at + '').substring(0, 10)
-
-                        cekChat[j].moment = moment(cekChat[j].created_at, moment.ISO_8601).format('LT')
-                        tempChat.push(cekChat[j])
                     }
-                }
-                momentDate = moment(tempChat[0].created_at, moment.ISO_8601).fromNow()
-                resu[i].chats.push({
-                    value: tempChat, 
-                    momentDate: momentDate
-                })
+                    momentDate = moment(tempChat[0].created_at, moment.ISO_8601).fromNow()
+                    
+                    resu[i].chats.push({
+                        value: tempChat, 
+                        momentDate: momentDate
+                    })
 
-                if(flag){
-                    unreadCtr++
-                }
+                    if(flag){
+                        unreadCtr++
+                    }
+    
 
                 allResu.push(resu[i])
+                pembuatDM = false;
             }
+            
+            else{
+
+                if(pembuatDM){
+                    // add aditional info
+                    let user = await db.query(`SELECT * FROM users WHERE id='${resu[i].user_id_2}'`);
+    
+                    // ctr followers
+                    let temp = await db.query(`SELECT * FROM user_relationships WHERE followed_user_id='${user[0].id}' AND status=1`);
+                    user[0].followersCtr = kFormatter(temp.length)
+    
+                    // set target user
+                    resu[i].target_user = user[0]
+    
+                     // last chat
+                    resu[i].lastChat = {message : " "}
+                    // resu[i].chats = [{
+                    //     value: " ", 
+                    //     momentDate: " "
+                    
+                    // }];
+    
+                    allResu.push(resu[i])
+                }
+            }
+
+         
+
         }
 
         allResu.push({
@@ -1351,6 +1388,7 @@ router.get('/dm', cekJWT, async(req,res)=>{
 
 // make new dm, R
 router.post('/dm', cekJWT, async (req,res)=> {
+    console.log("masuk");
     // cek field kosong
     if(req.body.target_user_id){
         let cekUpdate = await db.query(`SELECT * FROM dm WHERE user_id_1='${req.user.id}' AND user_id_2='${req.body.target_user_id}'`);
@@ -1368,11 +1406,13 @@ router.post('/dm', cekJWT, async (req,res)=> {
             let cekData = await db.query(`SELECT * FROM dm`);
             if(cekData.length>0){
                 let resu = await db.query(`SELECT MAX(dm_relation) FROM dm`);
-    
+                console.log("insert kedua");
                 // insert new notif
                 await db.query(`INSERT INTO dm VALUES(null,${resu[0]["MAX(dm_relation)"]+1}, '${req.user.id}', '${req.body.target_user_id}',1, CURRENT_TIMESTAMP, null)`);
                 await db.query(`INSERT INTO dm VALUES(null,${resu[0]["MAX(dm_relation)"]+1}, '${req.body.target_user_id}', '${req.user.id}',1, CURRENT_TIMESTAMP, null)`);
-    
+                //insert
+                // await db.query(`INSERT INTO chats VALUES(null, ${resu[0]["MAX(dm_relation)"]+1}, '${req.user.id}', '${req.body.target_user_id}', '', 2, CURRENT_TIMESTAMP, null)`);
+                // await db.query(`INSERT INTO chats VALUES(null, ${resu[0]["MAX(dm_relation)"]+1},'${req.body.target_user_id}', '${req.user.id}', '', 2, CURRENT_TIMESTAMP, null)`);
                 return res.status(201).json({
                     'message': 'Berhasil Create DM!',
                     'data': {
@@ -1382,8 +1422,12 @@ router.post('/dm', cekJWT, async (req,res)=> {
                 });
         
             }else{
+                console.log("insert pertama");
                 await db.query(`INSERT INTO dm VALUES(null,1,'${req.user.id}', '${req.body.target_user_id}',1, CURRENT_TIMESTAMP, null)`);
                 await db.query(`INSERT INTO dm VALUES(null,1,'${req.body.target_user_id}','${req.user.id}',1, CURRENT_TIMESTAMP, null)`);
+                //insert
+                // await db.query(`INSERT INTO chats VALUES(null, '1', '${req.user.id}', '${req.body.target_user_id}', '', 2, CURRENT_TIMESTAMP, null)`);
+                // await db.query(`INSERT INTO chats VALUES(null,'1','${req.body.target_user_id}', '${req.user.id}', '', 2, CURRENT_TIMESTAMP, null)`);
                 return res.status(201).json({
                     'message': 'Berhasil Create DM!',
                     'data': {
@@ -1393,6 +1437,7 @@ router.post('/dm', cekJWT, async (req,res)=> {
                 });
             }
         }
+        
     }else{
         return res.status(200).json({
             'message': 'Inputan Belum lengkap!',
